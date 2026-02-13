@@ -58,21 +58,32 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Pull new image and restart via Hostinger API
+      - name: Fetch current project config
+        id: config
         run: |
-          # Update the project to pull the latest image
-          curl -s -X PUT \
+          CONFIG=$(curl -s -X GET \
+            -H "Authorization: Bearer ${{ secrets.HOSTINGER_API_TOKEN }}" \
+            "https://developers.hostinger.com/api/vps/v1/virtual-machines/${{ secrets.HOSTINGER_VM_ID }}/docker/simvado")
+          echo "content<<EOFCONTENT" >> $GITHUB_OUTPUT
+          echo "$CONFIG" | jq -r '.content' >> $GITHUB_OUTPUT
+          echo "EOFCONTENT" >> $GITHUB_OUTPUT
+          echo "environment<<EOFENV" >> $GITHUB_OUTPUT
+          echo "$CONFIG" | jq -r '.environment' >> $GITHUB_OUTPUT
+          echo "EOFENV" >> $GITHUB_OUTPUT
+
+      - name: Redeploy project to pull latest image
+        run: |
+          jq -n \
+            --arg name "simvado" \
+            --arg content "${{ steps.config.outputs.content }}" \
+            --arg env "${{ steps.config.outputs.environment }}" \
+            '{project_name: $name, content: $content, environment: $env}' > /tmp/deploy.json
+
+          RESULT=$(curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.HOSTINGER_API_TOKEN }}" \
             -H "Content-Type: application/json" \
-            "https://developers.hostinger.com/api/vps/v1/virtual-machines/${{ secrets.HOSTINGER_VM_ID }}/docker/simvado"
+            -d @/tmp/deploy.json \
+            "https://developers.hostinger.com/api/vps/v1/virtual-machines/${{ secrets.HOSTINGER_VM_ID }}/docker")
 
-          echo "Deployment triggered. Waiting for container restart..."
-          sleep 10
-
-          # Restart the project to ensure fresh containers
-          curl -s -X POST \
-            -H "Authorization: Bearer ${{ secrets.HOSTINGER_API_TOKEN }}" \
-            -H "Content-Type: application/json" \
-            "https://developers.hostinger.com/api/vps/v1/virtual-machines/${{ secrets.HOSTINGER_VM_ID }}/docker/simvado/restart"
-
-          echo "Deploy complete."
+          echo "Deploy result: $RESULT"
+          echo "Deploy triggered. Containers will pull latest image and restart."
