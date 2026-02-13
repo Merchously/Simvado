@@ -1,0 +1,296 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  individual
+  enterprise_admin
+  enterprise_participant
+  studio_creator
+  platform_admin
+}
+
+enum SubscriptionTier {
+  free
+  pro_monthly
+  pro_annual
+  enterprise
+}
+
+enum OrgPlan {
+  pilot
+  standard
+  enterprise
+}
+
+enum OrgMemberRole {
+  admin
+  participant
+}
+
+enum SimulationStatus {
+  draft
+  review
+  staged
+  published
+  archived
+}
+
+enum Difficulty {
+  foundational
+  intermediate
+  advanced
+  executive
+}
+
+enum SimFormat {
+  branching_narrative
+  realtime_crisis
+  ai_adaptive
+  multiplayer_board
+}
+
+enum SessionStatus {
+  in_progress
+  completed
+  abandoned
+}
+
+enum AssignmentStatus {
+  assigned
+  in_progress
+  completed
+  overdue
+}
+
+// ─── Core Tables ────────────────────────────────────
+
+model User {
+  id               String           @id @default(uuid()) @db.Uuid
+  clerkId          String           @unique @map("clerk_id")
+  email            String
+  name             String           @default("")
+  role             UserRole         @default(individual)
+  organizationId   String?          @map("organization_id") @db.Uuid
+  subscriptionTier SubscriptionTier @default(free) @map("subscription_tier")
+  stripeCustomerId String?          @map("stripe_customer_id")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  organization        Organization?        @relation(fields: [organizationId], references: [id])
+  orgMemberships      OrgMembership[]
+  sessions            Session[]
+  assignedSimulations SimulationAssignment[] @relation("assignedTo")
+  assignedByMe        SimulationAssignment[] @relation("assignedBy")
+  authoredSimulations Simulation[]
+
+  @@map("users")
+}
+
+model Organization {
+  id                   String   @id @default(uuid()) @db.Uuid
+  name                 String
+  slug                 String   @unique
+  plan                 OrgPlan  @default(pilot)
+  seatLimit            Int      @default(25) @map("seat_limit")
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  ssoEnabled           Boolean  @default(false) @map("sso_enabled")
+  ssoProvider          String?  @map("sso_provider")
+  createdAt            DateTime @default(now()) @map("created_at")
+  updatedAt            DateTime @updatedAt @map("updated_at")
+
+  users       User[]
+  memberships OrgMembership[]
+  sessions    Session[]
+  assignments SimulationAssignment[]
+
+  @@map("organizations")
+}
+
+model OrgMembership {
+  id             String        @id @default(uuid()) @db.Uuid
+  userId         String        @map("user_id") @db.Uuid
+  organizationId String        @map("organization_id") @db.Uuid
+  role           OrgMemberRole @default(participant)
+  department     String?
+  joinedAt       DateTime      @default(now()) @map("joined_at")
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, organizationId])
+  @@map("org_memberships")
+}
+
+// ─── Simulation Content ─────────────────────────────
+
+model Simulation {
+  id                  String           @id @default(uuid()) @db.Uuid
+  title               String
+  slug                String           @unique
+  description         String           @default("")
+  category            String
+  skillTags           String[]         @map("skill_tags")
+  difficulty          Difficulty       @default(intermediate)
+  format              SimFormat        @default(branching_narrative)
+  status              SimulationStatus @default(draft)
+  thumbnailUrl        String?          @map("thumbnail_url")
+  estimatedDurationMin Int?            @map("estimated_duration_min")
+  authorId            String?          @map("author_id") @db.Uuid
+  scoringConfig       Json?            @map("scoring_config")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  updatedAt           DateTime         @updatedAt @map("updated_at")
+  publishedAt         DateTime?        @map("published_at")
+
+  author      User?                @relation(fields: [authorId], references: [id])
+  modules     Module[]
+  assignments SimulationAssignment[]
+
+  @@map("simulations")
+}
+
+model Module {
+  id                  String  @id @default(uuid()) @db.Uuid
+  simulationId        String  @map("simulation_id") @db.Uuid
+  title               String
+  slug                String
+  sortOrder           Int     @default(0) @map("sort_order")
+  narrativeContext    String? @map("narrative_context") @db.Text
+  stakeholders        Json?
+  isFreeDemo          Boolean @default(false) @map("is_free_demo")
+  estimatedDurationMin Int?   @map("estimated_duration_min")
+  status              SimulationStatus @default(draft)
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  simulation    Simulation     @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  decisionNodes DecisionNode[]
+  mediaAssets   MediaAsset[]
+  sessions      Session[]
+
+  @@unique([simulationId, slug])
+  @@map("modules")
+}
+
+model DecisionNode {
+  id                String  @id @default(uuid()) @db.Uuid
+  moduleId          String  @map("module_id") @db.Uuid
+  nodeKey           String  @map("node_key")
+  promptText        String  @map("prompt_text") @db.Text
+  sortOrder         Int     @default(0) @map("sort_order")
+  timerSeconds      Int?    @map("timer_seconds")
+  preVideoUrl       String? @map("pre_video_url")
+  contextDocuments  Json?   @map("context_documents")
+  aiPromptTemplate  String? @map("ai_prompt_template") @db.Text
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  module           Module            @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+  options          NodeOption[]
+  sessionDecisions SessionDecision[]
+
+  @@unique([moduleId, nodeKey])
+  @@map("decision_nodes")
+}
+
+model NodeOption {
+  id                String  @id @default(uuid()) @db.Uuid
+  decisionNodeId    String  @map("decision_node_id") @db.Uuid
+  optionKey         String  @map("option_key")
+  label             String
+  description       String  @db.Text
+  consequenceVideoUrl String? @map("consequence_video_url")
+  nextNodeKey       String? @map("next_node_key")
+  scoreImpacts      Json    @map("score_impacts")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  decisionNode     DecisionNode      @relation(fields: [decisionNodeId], references: [id], onDelete: Cascade)
+  sessionDecisions SessionDecision[]
+
+  @@unique([decisionNodeId, optionKey])
+  @@map("node_options")
+}
+
+model MediaAsset {
+  id              String   @id @default(uuid()) @db.Uuid
+  moduleId        String   @map("module_id") @db.Uuid
+  type            String
+  url             String
+  filename        String
+  sizeBytes       BigInt?  @map("size_bytes")
+  durationSeconds Int?     @map("duration_seconds")
+  uploadedAt      DateTime @default(now()) @map("uploaded_at")
+
+  module Module @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@map("media_assets")
+}
+
+// ─── Player Sessions ────────────────────────────────
+
+model Session {
+  id                   String        @id @default(uuid()) @db.Uuid
+  userId               String        @map("user_id") @db.Uuid
+  moduleId             String        @map("module_id") @db.Uuid
+  organizationId       String?       @map("organization_id") @db.Uuid
+  status               SessionStatus @default(in_progress)
+  startedAt            DateTime      @default(now()) @map("started_at")
+  completedAt          DateTime?     @map("completed_at")
+  totalDurationSeconds Int?          @map("total_duration_seconds")
+  finalScores          Json?         @map("final_scores")
+  debriefText          String?       @map("debrief_text") @db.Text
+  debriefGeneratedAt   DateTime?     @map("debrief_generated_at")
+
+  user         User              @relation(fields: [userId], references: [id])
+  module       Module            @relation(fields: [moduleId], references: [id])
+  organization Organization?     @relation(fields: [organizationId], references: [id])
+  decisions    SessionDecision[]
+
+  @@index([userId])
+  @@index([moduleId])
+  @@index([organizationId])
+  @@map("sessions")
+}
+
+model SessionDecision {
+  id                String   @id @default(uuid()) @db.Uuid
+  sessionId         String   @map("session_id") @db.Uuid
+  decisionNodeId    String   @map("decision_node_id") @db.Uuid
+  selectedOptionId  String   @map("selected_option_id") @db.Uuid
+  timeSpentSeconds  Int?     @map("time_spent_seconds")
+  aiDialogueResponse String? @map("ai_dialogue_response") @db.Text
+  scoreSnapshot     Json?    @map("score_snapshot")
+  decidedAt         DateTime @default(now()) @map("decided_at")
+
+  session      Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  decisionNode DecisionNode @relation(fields: [decisionNodeId], references: [id])
+  selectedOption NodeOption  @relation(fields: [selectedOptionId], references: [id])
+
+  @@index([sessionId])
+  @@map("session_decisions")
+}
+
+// ─── Enterprise Features ────────────────────────────
+
+model SimulationAssignment {
+  id               String           @id @default(uuid()) @db.Uuid
+  organizationId   String           @map("organization_id") @db.Uuid
+  assignedByUserId String           @map("assigned_by_user_id") @db.Uuid
+  assignedToUserId String           @map("assigned_to_user_id") @db.Uuid
+  simulationId     String           @map("simulation_id") @db.Uuid
+  dueDate          DateTime?        @map("due_date") @db.Date
+  status           AssignmentStatus @default(assigned)
+  assignedAt       DateTime         @default(now()) @map("assigned_at")
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  assignedBy   User         @relation("assignedBy", fields: [assignedByUserId], references: [id])
+  assignedTo   User         @relation("assignedTo", fields: [assignedToUserId], references: [id])
+  simulation   Simulation   @relation(fields: [simulationId], references: [id])
+
+  @@index([organizationId])
+  @@index([assignedToUserId])
+  @@map("simulation_assignments")
+}
