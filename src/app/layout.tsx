@@ -4,11 +4,11 @@ import { dark } from "@clerk/themes";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Simvado — The Flight Simulator for Leadership",
+  title: "Simvado — Leadership Training Evolved",
   description:
     "Practice high-stakes decisions in cinematic, AI-powered simulations. The professional training platform for executives, boards, and leaders.",
   openGraph: {
-    title: "Simvado — The Flight Simulator for Leadership",
+    title: "Simvado — Leadership Training Evolved",
     description:
       "Practice high-stakes decisions in cinematic, AI-powered simulations.",
     url: "https://simvado.com",

@@ -17,8 +17,8 @@ function Hero() {
         </div>
 
         <h1 className="text-5xl md:text-7xl font-bold tracking-tight leading-[1.1] max-w-4xl mx-auto">
-          The Flight Simulator{" "}
-          <span className="text-brand-400">for Leadership</span>
+          Leadership Training{" "}
+          <span className="text-brand-400">Evolved</span>
         </h1>
 
         <p className="mt-6 text-lg md:text-xl text-text-secondary max-w-2xl mx-auto leading-relaxed">

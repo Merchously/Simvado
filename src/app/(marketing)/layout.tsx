@@ -60,7 +60,7 @@ export default function MarketingLayout({
             <div>
               <Logo />
               <p className="mt-4 text-sm text-text-muted max-w-xs">
-                The flight simulator for professional leadership.
+                Leadership training evolved.
               </p>
             </div>
             <div>
