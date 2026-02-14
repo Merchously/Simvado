@@ -22,10 +22,10 @@ The gap between knowing what to do and doing it under stress is where Simvado li
 
 | Category | Existing Solutions | Simvado Difference |
 |----------|-------------------|-------------------|
-| Corporate training | LMS platforms (Cornerstone, SAP Litmos) | Interactive simulation vs. passive video/quiz |
+| Corporate training | LMS platforms (Cornerstone, SAP Litmos) | Immersive game-engine simulations vs. passive video/quiz |
 | Leadership development | Workshops, coaching | Scalable, repeatable, measurable |
-| Serious games | Custom-built one-offs | Platform with reusable engine + content library |
-| Business simulations | Academic case studies (Harvard) | Real-time AI-adaptive scenarios |
+| Serious games | Custom-built one-offs | Platform with simulation library + game engine integration API |
+| Business simulations | Academic case studies (Harvard) | Real-time immersive scenarios in professional game engines |
 
 ## Long-Term Vision (Canonical Phases)
 

@@ -14,17 +14,18 @@ The cost of unprepared leaders is measured in billions: corporate scandals, gove
 
 **Simvado is Decision-Intelligence Training.**
 
-We build cinematic, AI-powered simulations where professionals practice high-stakes decisions in realistic scenarios — and receive measurable, personalized feedback.
+We build a platform where professionals discover, launch, and review immersive simulations built in industry-leading game engines (Unreal Engine, Unity) — and receive measurable, AI-powered feedback.
 
-Think of it as: **the flight simulator for professional leadership.**
+Think of it as: **the Netflix of professional training simulations.**
 
 ### How It Works
 
-1. Player enters an immersive scenario (e.g., boardroom crisis with an activist investor)
-2. Makes decisions under pressure with real consequences in the simulation
-3. AI-powered NPCs react dynamically — no two sessions are identical
-4. Multi-dimensional scorecard measures governance, ethics, risk management, and strategy
-5. AI-generated debrief provides personalized coaching on what they did well and what they missed
+1. Professional browses the Simvado simulation library and selects a scenario
+2. Launches an immersive simulation built in Unreal Engine (or Unity)
+3. Makes decisions under pressure with real consequences in the simulation
+4. Game engine reports gameplay data back to the Simvado platform
+5. Multi-dimensional scorecard measures governance, ethics, risk management, and strategy
+6. AI-generated debrief provides personalized coaching on what they did well and what they missed
 
 ## The Market
 
@@ -56,20 +57,21 @@ Simvado targets the intersection: **simulation-based professional training for k
 
 ## Why Now
 
-1. **AI maturity** — Large language models (Claude, GPT) now generate realistic dialogue and personalized coaching at production quality
-2. **Remote work** — distributed teams need scalable, digital training that works without flying people to workshops
-3. **Governance scrutiny** — post-2020 corporate scandals have increased regulatory and shareholder pressure on board preparedness
-4. **Simulation precedent** — aviation, military, and healthcare have proven simulation training works; professional services are next
+1. **AI maturity** — Large language models (Claude, GPT) now generate production-quality coaching and personalized debriefs
+2. **Game engine accessibility** — Unreal Engine and Unity enable cinematic-quality simulations at lower cost than ever
+3. **Remote work** — distributed teams need scalable, digital training that works without flying people to workshops
+4. **Governance scrutiny** — post-2020 corporate scandals have increased regulatory and shareholder pressure on board preparedness
+5. **Simulation precedent** — aviation, military, and healthcare have proven simulation training works; professional services are next
 
 ## Competitive Advantage
 
 | Advantage | Detail |
 |-----------|--------|
-| **Platform, not project** | Competitors build one-off custom simulations. Simvado is a reusable engine + content library. |
-| **AI-native** | AI isn't bolted on — it powers dialogue, adaptation, and debriefs at the core. |
-| **Cinematic quality** | Executive audiences expect premium. We deliver boardroom-grade production value. |
-| **Measurable outcomes** | 5-axis scoring and AI debriefs give L&D teams the ROI metrics they need. |
-| **Marketplace moat** | Phase 3 marketplace creates network effects — more studios = more content = more users. |
+| **Platform, not project** | Competitors build one-off custom simulations. Simvado is a platform with a growing simulation library. |
+| **AI-native debriefs** | AI isn't bolted on — it powers personalized coaching and analytics at the core. |
+| **Game engine quality** | Simulations built in Unreal/Unity deliver executive-grade immersion. |
+| **Measurable outcomes** | Multi-axis scoring and AI debriefs give L&D teams the ROI metrics they need. |
+| **Marketplace moat** | Phase 3 marketplace creates network effects — more studios = more simulations = more users. |
 
 ## The Team
 
@@ -80,24 +82,24 @@ Simvado targets the intersection: **simulation-based professional training for k
 ## The Ask
 
 Simvado is raising a **pre-seed round** to:
-1. Complete Phase 1 development (platform + flagship simulation)
-2. Produce video content for Boardroom Under Pressure (7 modules)
+1. Complete Phase 1 platform development
+2. Build flagship simulation in Unreal Engine (7 modules)
 3. Onboard 3–5 enterprise pilot customers
-4. Hire: 1 AI engineer, 1 media producer
+4. Hire: 1 game developer, 1 3D artist
 
 **Use of funds:**
 | Category | Allocation |
 |----------|-----------|
 | Product development | 40% |
-| Content production | 30% |
+| Simulation production (Unreal) | 30% |
 | Sales & marketing | 20% |
 | Operations | 10% |
 
 ## Simvado = Platform + Studio + Marketplace
 
 ```
-Phase 1: We build the product and prove it works
-Phase 2: We scale with enterprise customers
-Phase 3: We open the platform to creators
+Phase 1: We build the platform + flagship simulation (Unreal Engine) and prove it works
+Phase 2: We scale with enterprise customers and expand the library
+Phase 3: We open the platform to external studios (any game engine)
 Phase 4: We become the global standard for simulation-based professional training
 ```

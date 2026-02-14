@@ -7,21 +7,24 @@
 | **Individual Professional** | Solo subscriber exploring simulations | Phase 1 |
 | **Enterprise Admin** | Manages org seats, assigns simulations, views analytics | Phase 2 |
 | **Enterprise Participant** | Employee assigned simulations by their org | Phase 2 |
-| **Studio Creator** | Third-party simulation author | Phase 3 |
+| **Studio Creator** | Third-party simulation author (external game engine) | Phase 3 |
 | **Platform Admin** | Simvado internal — content management, support, analytics | Phase 1 |
 
 ## Core Platform Modules
+
+**Important:** The platform does NOT render or run simulations. Simulations are built in external game engines (Unreal, Unity, etc.) and connect via the Game Engine API. The platform provides catalog, analytics, AI debriefs, and management.
 
 ### Phase 1 Modules
 
 | Module | Purpose | Key Features |
 |--------|---------|-------------|
 | **Auth & Identity** | User registration, login, role-based access | Email/password, OAuth (Google, Microsoft), JWT sessions |
-| **Simulation Player Engine** | Renders and runs simulations | Decision tree traversal, media playback, state management, scoring |
-| **Content Management System** | Internal tool for managing simulation content | CRUD for simulations, version control, publish/unpublish |
-| **User Dashboard** | Personal progress and history | Completed simulations, scores, skill radar chart |
+| **Game Engine Integration API** | Connects external game engines to the platform | Session creation, event reporting, score submission, completion signaling (API key auth) |
+| **Simulation Catalog** | Discover and browse simulations | Search, filter by category/skill/difficulty, launch links |
+| **Analytics & Debriefs** | Post-session performance analysis | Multi-axis scoring, AI-generated coaching debriefs, peer comparison |
+| **User Dashboard** | Personal progress and history | Completed simulations, scores, session history |
 | **Subscription & Billing** | Payment processing | Stripe integration, plan management, invoicing |
-| **Media Pipeline** | Asset storage and delivery | Video/image upload, CDN delivery, transcoding |
+| **Content Management System** | Internal tool for managing simulation metadata | CRUD for simulations, module configuration, API key management |
 
 ### Phase 2 Modules
 
@@ -30,38 +33,42 @@
 | **Enterprise Dashboard** | Organization-level management | Seat allocation, department segmentation, bulk assignment |
 | **Enterprise Analytics** | Performance insights across organization | Aggregate scores, risk heatmaps, exportable reports (PDF/CSV) |
 | **Notification System** | Alerts and communications | Assignment notifications, completion reminders, admin alerts |
-| **AI Scenario Engine** | Dynamic simulation adaptation | Real-time difficulty adjustment, personalized branching |
 
 ### Phase 3 Modules
 
 | Module | Purpose | Key Features |
 |--------|---------|-------------|
-| **Studio SDK & Authoring Tool** | External simulation creation | Template library, decision tree builder, scoring configurator |
-| **Marketplace** | Discovery and distribution | Search, categories, ratings, featured content |
-| **API Gateway** | Integration layer for third parties | REST API, webhooks, partner authentication |
+| **Game Engine SDKs** | Engine-specific integration libraries | Unreal SDK, Unity SDK wrapping the REST API |
+| **Developer Portal** | External studio onboarding | API docs, SDK downloads, integration guides, sandbox |
+| **Marketplace** | Discovery and distribution | Search, categories, ratings, featured content, studio profiles |
 | **Revenue Share Engine** | Automated creator payments | Usage tracking, split calculation, payout via Stripe Connect |
 
 ## Architecture Diagram
 
 ```
-┌─────────────────────────────────────────────────────┐
-│                   Client (Next.js)                   │
-│          Browser / Tablet (16:9 optimized)           │
-├─────────────────────────────────────────────────────┤
-│                 API Layer (Node.js)                   │
-│     REST endpoints + WebSocket (real-time sims)      │
-├──────────┬──────────┬──────────┬────────────────────┤
-│   Auth   │ Sim      │ CMS      │ Analytics          │
-│ (Clerk)  │ Engine   │          │ Engine             │
-├──────────┴──────────┴──────────┴────────────────────┤
-│              Database (PostgreSQL)                    │
-│              Cache (Redis)                            │
-│              File Storage (S3 / Cloudflare R2)       │
-├─────────────────────────────────────────────────────┤
-│          AI Layer (Claude API + Custom Logic)         │
-├─────────────────────────────────────────────────────┤
-│     Automation (n8n) — onboarding, alerts, reports   │
-└─────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│       Game Engines (Unreal, Unity, Custom)               │
+│     (Build and run simulations externally)                │
+│                                                          │
+│  Reports events via ──→ Game Engine API (REST + API Key) │
+└────────────────────────────┬────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────┐
+│               Simvado Platform (Next.js)                 │
+│           Browser-based web application                  │
+├──────────┬──────────┬──────────┬────────────────────────┤
+│   Auth   │ Catalog  │ Analytics│ Enterprise             │
+│ (Clerk)  │ & Launch │ & Debrief│ Management             │
+├──────────┴──────────┴──────────┴────────────────────────┤
+│              Database (PostgreSQL)                        │
+│              Cache (Redis)                                │
+│              File Storage (Cloudflare R2 — planned)      │
+├─────────────────────────────────────────────────────────┤
+│          AI Layer (Claude API — debriefs & reports)       │
+├─────────────────────────────────────────────────────────┤
+│     Automation (n8n) — onboarding, alerts, reports       │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## Enterprise Controls

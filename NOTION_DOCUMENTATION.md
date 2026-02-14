@@ -53,6 +53,17 @@ Phase 3: We open the platform to external studios (any game engine)
 Phase 4: We become the global standard for simulation-based professional training
 ```
 
+### Competitive Positioning
+
+| Category | Existing Solutions | Simvado Difference |
+|----------|-------------------|-------------------|
+| Corporate training | LMS platforms (Cornerstone, SAP Litmos) | Immersive game-engine simulations vs. passive video/quiz |
+| Leadership development | Workshops, coaching | Scalable, repeatable, measurable |
+| Serious games | Custom-built one-offs | Platform with simulation library + game engine integration API |
+| Business simulations | Academic case studies (Harvard) | Real-time immersive scenarios in professional game engines |
+
+**Competitive advantages:** Platform not project, AI-native debriefs, cinematic game-engine quality, measurable outcomes (multi-axis scoring), marketplace moat in Phase 3.
+
 ---
 
 ## 3. Platform vs Game Engine Architecture
@@ -67,6 +78,7 @@ Simvado is the **platform** (like Netflix). Simulations are the **content** (lik
 | Decision logic & branching | Game Engine |
 | Score calculation | Hybrid (engine calculates, platform stores/verifies) |
 | Event reporting | Game Engine → Platform API |
+| Session management | Hybrid (platform creates, engine tracks gameplay state) |
 | Analytics & dashboards | Platform (Simvado) |
 | AI debriefs | Platform (Simvado) |
 | Enterprise management | Platform (Simvado) |
@@ -86,16 +98,61 @@ Game Engine (Unreal/Unity)
                                           User reviews results on Simvado
 ```
 
-### Competitive Positioning
+### User Types
 
-| Category | Existing Solutions | Simvado Difference |
-|----------|-------------------|-------------------|
-| Corporate training | LMS platforms (Cornerstone, SAP Litmos) | Immersive game-engine simulations vs. passive video/quiz |
-| Leadership development | Workshops, coaching | Scalable, repeatable, measurable |
-| Serious games | Custom-built one-offs | Platform with reusable API + simulation library |
-| Business simulations | Academic case studies (Harvard) | Real-time AI-adaptive scenarios in professional game engines |
+| Role | Description | Phase |
+|------|-------------|-------|
+| **Individual Professional** | Solo subscriber exploring simulations | Phase 1 |
+| **Enterprise Admin** | Manages org seats, assigns simulations, views analytics | Phase 2 |
+| **Enterprise Participant** | Employee assigned simulations by their org | Phase 2 |
+| **Studio Creator** | Third-party simulation author (external game engine) | Phase 3 |
+| **Platform Admin** | Simvado internal — content management, support, analytics | Phase 1 |
 
-**Competitive advantages:** Platform not project, AI-native debriefs, cinematic game-engine quality, measurable outcomes (multi-axis scoring), marketplace moat in Phase 3.
+### Platform Modules
+
+**Phase 1 Modules:**
+
+| Module | Purpose |
+|--------|---------|
+| Auth & Identity | User registration, login, role-based access (Clerk) |
+| Game Engine Integration API | Session creation, event reporting, score submission, completion signaling (API key auth) |
+| Simulation Catalog | Browse, filter, search simulations by category/skill/difficulty |
+| Analytics & Debriefs | Multi-axis scoring, AI-generated coaching debriefs, peer comparison |
+| User Dashboard | Personal progress and history |
+| Subscription & Billing | Stripe integration, plan management, invoicing |
+| Content Management System | CRUD for simulations, module configuration, API key management |
+
+**Phase 2 Modules:** Enterprise Dashboard, Enterprise Analytics, Notification System
+
+**Phase 3 Modules:** Game Engine SDKs (Unreal, Unity), Developer Portal, Marketplace, Revenue Share Engine
+
+### Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────┐
+│       Game Engines (Unreal, Unity, Custom)               │
+│     (Build and run simulations externally)                │
+│                                                          │
+│  Reports events via ──→ Game Engine API (REST + API Key) │
+└────────────────────────────┬────────────────────────────┘
+                             │
+                             ▼
+┌─────────────────────────────────────────────────────────┐
+│               Simvado Platform (Next.js)                 │
+│           Browser-based web application                  │
+├──────────┬──────────┬──────────┬────────────────────────┤
+│   Auth   │ Catalog  │ Analytics│ Enterprise             │
+│ (Clerk)  │ & Launch │ & Debrief│ Management             │
+├──────────┴──────────┴──────────┴────────────────────────┤
+│              Database (PostgreSQL)                        │
+│              Cache (Redis)                                │
+│              File Storage (Cloudflare R2 — planned)      │
+├─────────────────────────────────────────────────────────┤
+│          AI Layer (Claude API — debriefs & reports)       │
+├─────────────────────────────────────────────────────────┤
+│     Automation (n8n) — onboarding, alerts, reports       │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
@@ -130,6 +187,16 @@ Game Engine (Unreal/Unity)
 6. **Resolution** (In-Engine → API) — Outcome scene, completion + final scores reported
 7. **Scorecard** (Platform) — Multi-axis score visualization on Simvado dashboard
 8. **AI Debrief** (Platform) — Personalized analysis by Claude, accessible on web
+
+### Game Engine → Platform Integration
+
+| Event | API Call | When |
+|-------|----------|------|
+| Session start | `POST /api/game/sessions` | Player launches simulation |
+| Decision made | `POST /api/game/sessions/:id/events` | After each decision point |
+| Milestone reached | `POST /api/game/sessions/:id/events` | Key narrative moments |
+| Score update | `POST /api/game/sessions/:id/events` | After score recalculation |
+| Session complete | `POST /api/game/sessions/:id/complete` | End of module |
 
 ### MVP Scope
 
@@ -175,33 +242,71 @@ total_score = Sum(dimension_score x dimension_weight)
 | 50-54 | C- |
 | < 50 | D |
 
+### Event Reporting During Gameplay
+
+The game engine reports events to the platform via the Game Engine API:
+
+| Event Type | When | Data Reported |
+|-----------|------|---------------|
+| `decision` | Player makes a choice | Choice details, options available, time spent |
+| `milestone` | Key narrative moment reached | Milestone identifier, context |
+| `score_update` | After score recalculation | Current scores per dimension |
+| `completion` | End of module | Final scores, total duration |
+
 ---
 
 ## 6. AI System
 
-Simvado uses AI on the **platform side** for post-session analysis. Gameplay logic, scoring, and decision branching are handled by the game engine — no LLM in the gameplay loop.
-
-### AI Features
-
-| Feature | AI Model | When | Latency Target |
-|---------|----------|------|----------------|
-| Debrief Generator | Claude Sonnet | After session completion | < 10 seconds |
-| Enterprise Analytics | Claude | On-demand (reports) | < 30 seconds |
+Simvado uses AI on the **platform side** for post-session analysis and coaching. Gameplay logic, scoring, and decision branching are handled by the game engine — no LLM in the gameplay loop.
 
 ### Architecture Principle
 
 AI handles generative tasks on the platform (debriefs, coaching reports). Deterministic tasks (scoring, branching, state) are handled by the game engine using structured logic.
 
 ```
-GAME ENGINE (Runtime)
+GAME ENGINE (Runtime — Not Simvado)
 ├── Decision logic, branching, NPC behavior
-├── Score calculation
-└── Event reporting → Simvado API
+├── Score calculation (deterministic)
+├── Dynamic dialogue and adaptation
+└── Event reporting → Simvado Game Engine API
 
-PLATFORM (Post-Session)
+SIMVADO PLATFORM (Post-Session)
 ├── Debrief Generator → Personalized coaching analysis
-└── Enterprise Analytics → Org-level reports
+└── Enterprise Analytics → Org-level reports and insights
 ```
+
+### Platform AI Features
+
+| Feature | AI Model | When | Latency Target |
+|---------|----------|------|----------------|
+| Debrief Generator | Claude Sonnet | After session completion | < 10 seconds |
+| Enterprise Analytics | Claude | On-demand (reports) | < 30 seconds |
+
+### Debrief Structure
+
+1. Summary of Decisions — What path you took and key choice moments
+2. Strengths — What you handled well (tied to scoring dimensions)
+3. Blind Spots — What you missed or underweighted
+4. Alternative Paths — What would have happened if you chose differently
+5. Development Recommendations — Specific skills to develop based on scoring patterns
+
+### What the Game Engine Handles (Not Platform AI)
+
+| Capability | Owner |
+|-----------|-------|
+| NPC dialogue | Game Engine |
+| Decision branching | Game Engine |
+| Score calculation | Game Engine |
+| Adaptive difficulty | Game Engine |
+| Visual rendering | Game Engine |
+
+### Authoring-Time AI (Content Creation)
+
+During simulation production (not runtime), AI assists the Simvado Studio team with scenario generation, decision tree review, and scoring calibration. These tools do not run during gameplay or on the platform at runtime.
+
+### Prompt Management
+
+AI prompts are stored as versioned templates including system instruction, context injection points, output format specification, and token budget.
 
 ---
 
@@ -215,6 +320,8 @@ PLATFORM (Post-Session)
 | Pro Monthly | $79/month | Unlimited simulation library access |
 | Pro Annual | $699/year | Unlimited access + priority new releases |
 
+The free tier is critical for top-of-funnel conversion.
+
 ### Phase 1 — Enterprise Pilot Program
 
 | Package | Price | Includes |
@@ -224,6 +331,15 @@ PLATFORM (Post-Session)
 | Enterprise (100+ seats) | Custom pricing | SSO, custom reporting, dedicated support |
 
 Per-seat pricing: **$250-$500/user/year** depending on volume.
+
+### Phase 2 — Enterprise Licensing (Full)
+
+| Component | Price |
+|-----------|-------|
+| Annual Organization License | $25,000-$100,000+ |
+| Per-seat add-on | $500/user/year |
+| Custom simulation development | $100,000-$500,000+ per project |
+| Enterprise analytics add-on | $5,000/year |
 
 ### Phase 3 — Marketplace Revenue Share
 
@@ -242,6 +358,15 @@ Per-seat pricing: **$250-$500/user/year** depending on volume.
 - **Enterprise invoicing:** Stripe Invoicing + manual for large contracts
 - **Marketplace payouts:** Stripe Connect (Phase 3)
 - **Billing portal:** Stripe Customer Portal embedded in app
+
+### Key Metrics to Track
+
+- Monthly Recurring Revenue (MRR)
+- Average Revenue Per User (ARPU)
+- Enterprise contract value (ACV)
+- Free-to-paid conversion rate
+- Simulation completion rate (engagement proxy)
+- Net Revenue Retention (enterprise)
 
 ---
 
@@ -263,12 +388,20 @@ Per-seat pricing: **$250-$500/user/year** depending on volume.
 
 ### Buyer Personas
 
-| Persona | Title | Motivation |
-|---------|-------|-----------|
-| The Champion | L&D Director | Wants measurable training outcomes |
-| The Gatekeeper | CFO / Procurement | Needs cost justification |
-| The Sponsor | CEO / Board Chair | Wants cutting-edge governance prep |
-| The End User | VP / Director | Wants engaging, relevant experience |
+| Persona | Title | Motivation | Objection |
+|---------|-------|-----------|-----------|
+| The Champion | L&D Director | Wants measurable training outcomes | "Can I prove ROI to the board?" |
+| The Gatekeeper | CFO / Procurement | Needs cost justification | "How does this compare to existing LMS?" |
+| The Sponsor | CEO / Board Chair | Wants cutting-edge governance prep | "Is this proven? Who else uses it?" |
+| The End User | VP / Director | Wants engaging, relevant experience | "Is this actually useful or just a game?" |
+
+### Acquisition Strategy
+
+**Phase 1 — Direct & High-Touch:** Warm outreach, free demo simulation, pilot program (3-5 customers), case study development.
+
+**Phase 2 — Scalable Channels:** Content marketing, conferences (NACD, WEF), partnerships, inbound via free demo.
+
+**Phase 3 — Platform Effects:** Studios bring audiences, marketplace discovery, referral program.
 
 ---
 
@@ -283,6 +416,9 @@ Per-seat pricing: **$250-$500/user/year** depending on volume.
 | **Next.js 15** (App Router) | Full-stack React framework |
 | **React 19** | UI library |
 | **Tailwind CSS 4** | Styling |
+| **React Query (TanStack)** | Server state management |
+
+**Note:** The platform does NOT include a simulation player. Simulations run in external game engines.
 
 ### Platform Backend
 
@@ -300,6 +436,16 @@ Per-seat pricing: **$250-$500/user/year** depending on volume.
 |-----------|---------|
 | **Game Engine API** | REST API for session creation, event reporting, completion |
 | **API Key Auth** | SHA-256 hashed keys (separate from Clerk JWT) |
+| **GameEvent model** | Generic JSONB event storage for any game engine data format |
+
+### Supported Game Engines
+
+| Engine | Status | Integration Method |
+|--------|--------|-------------------|
+| **Unreal Engine** | Phase 1 (flagship) | HTTP REST calls to Simvado API |
+| **Unity** | Phase 1 | HTTP REST calls to Simvado API |
+| **Web-based** | Phase 2 | Browser-based games calling API via JavaScript |
+| **Custom** | Phase 3 | Any engine implementing the API contract |
 
 ### Auth & AI
 
@@ -314,8 +460,9 @@ Per-seat pricing: **$250-$500/user/year** depending on volume.
 |-----------|---------|
 | **Hostinger VPS** | Production hosting (Docker) |
 | **Traefik** | Reverse proxy + SSL (Let's Encrypt) |
-| **Docker** | Containerized deployment |
+| **Docker + Docker Compose** | Containerized deployment |
 | **GitHub Actions** | CI/CD pipeline |
+| **GitHub Container Registry** | Docker image storage |
 | **n8n** | Workflow automation |
 
 ### Key Dependencies (package.json)
@@ -330,6 +477,23 @@ Per-seat pricing: **$250-$500/user/year** depending on volume.
 | @anthropic-ai/sdk | ^0.39.0 |
 | tailwindcss | ^4.0.0 |
 | typescript | ^5.7.0 |
+
+### n8n Automation Workflows (Phase 1)
+
+1. User onboarding — welcome email, demo assignment
+2. Simulation completion — trigger debrief generation, update analytics
+3. Enterprise alerts — weekly progress digest to admin
+4. Billing events — Stripe webhook processing, failed payment recovery
+5. Content publish — notify subscribers of new simulation releases
+
+### Development Tooling
+
+| Tool | Purpose |
+|------|---------|
+| TypeScript | End-to-end type safety |
+| ESLint + Prettier | Code quality and formatting |
+| Vitest | Unit and integration testing |
+| Playwright | E2E testing |
 
 ---
 
@@ -362,7 +526,7 @@ ApiKey (for game engine authentication)
 | **Simulation** | Top-level simulation | title, slug, category, difficulty, format, status, scoringConfig (JSONB) |
 | **Module** | Playable scenario within simulation | title, narrativeContext, stakeholders (JSONB), launchUrl, platform, buildVersion |
 | **MediaAsset** | Video/image/audio/document | type, url, filename, sizeBytes |
-| **Session** | One playthrough | userId, moduleId, externalSessionId, platform, status, finalScores (JSONB), debriefText |
+| **Session** | One playthrough | userId, moduleId, externalSessionId, platform, launchUrl, status, finalScores (JSONB), debriefText |
 | **GameEvent** | Event from game engine | sessionId, eventType, eventData (JSONB), timestamp |
 | **ApiKey** | Game engine auth key | name, keyHash, keyPrefix, simulationId, scopes, isActive, expiresAt |
 | **SimulationAssignment** | Enterprise assigns sim to user | organizationId, assignedToUserId, simulationId, dueDate |
@@ -392,7 +556,7 @@ All endpoints prefixed with `/api`. Two auth mechanisms: Clerk JWT (platform use
 | GET | `/api/game/sessions/:id` | Get session state |
 | POST | `/api/game/sessions/:id/events` | Report events (decisions, milestones, scores) |
 | GET | `/api/game/sessions/:id/events` | List events for session |
-| POST | `/api/game/sessions/:id/complete` | Signal completion + final scores |
+| POST | `/api/game/sessions/:id/complete` | Signal completion + final scores → triggers AI debrief |
 
 ### Auth & Profile (Clerk JWT)
 
@@ -408,6 +572,7 @@ All endpoints prefixed with `/api`. Two auth mechanisms: Clerk JWT (platform use
 |--------|----------|-------------|
 | GET | `/api/simulations` | List published simulations (filterable) |
 | GET | `/api/simulations/:slug` | Simulation detail + modules |
+| GET | `/api/simulations/:slug/modules/:moduleSlug` | Module detail (subscription check) |
 
 ### Sessions & Analytics
 
@@ -432,8 +597,10 @@ All endpoints prefixed with `/api`. Two auth mechanisms: Clerk JWT (platform use
 | GET | `/api/org` | Organization details |
 | GET | `/api/org/members` | List members |
 | POST | `/api/org/members/invite` | Invite by email |
+| DELETE | `/api/org/members/:userId` | Remove member |
 | POST | `/api/org/assignments` | Assign simulation |
 | GET | `/api/org/analytics` | Aggregate analytics |
+| GET | `/api/org/analytics/export` | Export as CSV/PDF |
 
 ### Billing
 
@@ -447,11 +614,14 @@ All endpoints prefixed with `/api`. Two auth mechanisms: Clerk JWT (platform use
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| GET | `/api/admin/simulations` | List all simulations (all statuses) |
 | POST | `/api/admin/simulations` | Create simulation |
 | PATCH | `/api/admin/simulations/:id` | Update simulation |
 | POST | `/api/admin/simulations/:id/publish` | Publish |
 | POST | `/api/admin/modules` | Create module |
+| PATCH | `/api/admin/modules/:id` | Update module |
 | POST | `/api/admin/api-keys` | Generate API key for game engine |
+| DELETE | `/api/admin/api-keys/:id` | Revoke API key |
 | POST | `/api/admin/media/upload` | Upload media |
 
 ### Rate Limits
@@ -533,23 +703,34 @@ prisma/
 |-----------|--------|
 | **VPS** | Hostinger VPS (ID: 1032520) |
 | **IP** | 72.60.164.113 |
-| **OS** | Ubuntu 24.04 |
-| **Hostname** | merchously.com |
 | **Domain** | simvado.com |
 | **Containers** | 3 (app, postgres, redis) |
 | **Reverse Proxy** | Traefik (Let's Encrypt SSL) |
 
-### Docker Architecture
+### Infrastructure Map
 
 ```
-Hostinger VPS (72.60.164.113)
-├── Traefik (root project) ──→ SSL + routing
-├── Simvado Docker Project
-│   ├── app (ghcr.io/merchously/simvado:latest) ──→ port 3000
-│   ├── postgres (PostgreSQL 16) ──→ port 5432 (internal)
-│   └── redis (Redis 7 Alpine) ──→ port 6379 (internal)
-├── n8n (workflow automation)
-└── Other projects (ahhoy, dashboard, irun, morrisseau-estate)
+┌──────────────────────────────────────────────────────────┐
+│ Hostinger VPS (72.60.164.113)                             │
+│ ├── Traefik (reverse proxy + Let's Encrypt SSL)          │
+│ ├── Simvado Docker Project                               │
+│ │   ├── app (ghcr.io/merchously/simvado:latest)          │
+│ │   ├── postgres (PostgreSQL 16)                         │
+│ │   └── redis (Redis 7 Alpine)                           │
+│ ├── n8n (workflow automation)                            │
+│ └── Other Docker projects                                │
+├──────────────────────────────────────────────────────────┤
+│ External Services                                         │
+│ ├── Clerk (authentication)                               │
+│ ├── Stripe (payments)                                    │
+│ ├── Anthropic API (Claude — AI debriefs)                 │
+│ └── Cloudflare (DNS)                                     │
+├──────────────────────────────────────────────────────────┤
+│ GitHub                                                    │
+│ ├── Source code (github.com/Merchously/Simvado)          │
+│ ├── GitHub Container Registry (Docker images)            │
+│ └── GitHub Actions (CI/CD pipeline)                      │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ### CI/CD Pipeline (GitHub Actions)
@@ -568,6 +749,15 @@ Push to main
   └─ Job 3: Deploy to VPS (needs Job 2)
        ├── Fetch current config via Hostinger API
        └── POST redeploy (pulls new image)
+```
+
+### Dockerfile (Multi-stage)
+
+```
+Stage 1 (deps):     npm ci + copy prisma schema
+Stage 2 (builder):  prisma generate + next build (standalone output)
+Stage 3 (runner):   Standalone Next.js output, non-root user, port 3000
+                    Entrypoint: prisma db push + node server.js
 ```
 
 ### Environment Variables
@@ -592,6 +782,25 @@ Push to main
 | HOSTINGER_API_TOKEN | VPS API authentication |
 | HOSTINGER_VM_ID | VPS machine ID (1032520) |
 | GITHUB_TOKEN | Auto-provided for GHCR |
+
+### Database Migrations
+
+Using Prisma. Development: `npx prisma db push`. Production: Docker entrypoint runs `npx prisma db push` on each deployment.
+
+### Monitoring
+
+| Concern | Tool | Phase |
+|---------|------|-------|
+| Error tracking | Application logs (Docker) | Phase 1 |
+| Uptime monitoring | Better Uptime or similar | Phase 1 |
+| AI cost tracking | Anthropic usage dashboard | Phase 1 |
+| Custom metrics | PostHog (product analytics) | Phase 2 |
+
+### Domain & DNS
+
+| Domain | Purpose | Provider |
+|--------|---------|---------|
+| simvado.com | Platform (full application) | Cloudflare DNS → Hostinger VPS |
 
 ---
 
@@ -621,13 +830,17 @@ Sign-Up → Org Setup → Invite Members → Assign Simulations
 → Enterprise Dashboard (seats, progress, scores, reports)
 ```
 
-### Flow 4: Game Engine Integration
+### Flow 4: Game Engine Integration (Developer Flow)
 
 ```
-Generate API Key → Configure in game engine build
-→ POST /api/game/sessions (create session)
-→ POST /api/game/sessions/:id/events (report gameplay data)
-→ POST /api/game/sessions/:id/complete (final scores → triggers AI debrief)
+1. Generate API Key (via admin panel, scoped to simulation)
+2. Configure in game engine build (API base URL + key)
+3. Session Lifecycle:
+   → POST /api/game/sessions (create session)
+   → POST /api/game/sessions/:id/events (report gameplay data)
+   → POST /api/game/sessions/:id/complete (final scores → triggers AI debrief)
+4. Testing (sandbox/staging, verify events in dashboard)
+5. Publish (set launchUrl, QA end-to-end, publish to catalog)
 ```
 
 ### Flow 5: Free Tier Funnel
@@ -637,6 +850,22 @@ Landing Page → Sign Up (free) → Simulation Catalog
 → Access 1 simulation → Launch + Play → Results + Debrief
 → "Upgrade to Pro for unlimited access" → Stripe checkout
 ```
+
+### Screen Inventory (Phase 1)
+
+| Screen | Route | Auth Required |
+|--------|-------|---------------|
+| Landing page | `/` | No |
+| Pricing | `/pricing` | No |
+| Sign up / Login | `/sign-in`, `/sign-up` | No (Clerk hosted) |
+| Simulation catalog | `/simulations` | Yes |
+| Simulation detail | `/simulations/:slug` | Yes |
+| Session results | `/sessions/:sessionId/results` | Yes (session owner) |
+| User dashboard | `/dashboard` | Yes |
+| Enterprise dashboard | `/org/dashboard` | Enterprise admin |
+| Enterprise analytics | `/org/analytics` | Enterprise admin |
+| Admin CMS | `/admin` | Platform admin |
+| Admin simulation editor | `/admin/simulations/:id` | Platform admin |
 
 ---
 
@@ -663,12 +892,29 @@ Landing Page → Sign Up (free) → Simulation Catalog
 | Game Developer | Unreal/Unity development, 3D environments, gameplay |
 | AI Engineer | Debrief prompts, coaching logic, platform AI |
 | 3D Artist | Character models, environments, visual assets |
+| Audio Designer | Voice acting, ambient sound, music |
 | QA Tester | End-to-end simulation + API integration testing |
 | Product Lead | Prioritization, review, publish approval |
 
 ### Phase 3: External Studio Model
 
 Studios get: Game Engine API & SDKs (Unreal, Unity), platform integration guide, marketplace distribution, analytics, AI debriefs, automated payments (50/50 via Stripe Connect).
+
+### Quality Standards for External Studios
+
+- All simulations must integrate with the Game Engine API (sessions, events, completion)
+- Scoring data must map to the platform's configurable scoring dimensions
+- Content must meet Simvado editorial guidelines
+- Simulations must pass API integration testing and event schema validation
+
+### Simvado's Role Evolves
+
+```
+Phase 1: Studio (we build simulations in Unreal + run the platform)
+Phase 2: Studio + Platform (we build more simulations, expand platform features)
+Phase 3: Platform + Marketplace (we run the platform, studios build simulations too)
+Phase 4: Global Distribution Engine (platform at scale across industries and engines)
+```
 
 ---
 
@@ -738,7 +984,16 @@ The world trains its most important decision-makers with the least effective met
 
 ### The Solution
 
-Immersive, game-engine-powered simulations where professionals practice high-stakes decisions — distributed through a platform that provides measurable, AI-powered feedback.
+**Simvado is Decision-Intelligence Training.** A platform where professionals discover, launch, and review immersive simulations built in industry-leading game engines (Unreal Engine, Unity) — and receive measurable, AI-powered feedback. Think of it as the Netflix of professional training simulations.
+
+### How It Works
+
+1. Professional browses the Simvado simulation library and selects a scenario
+2. Launches an immersive simulation built in Unreal Engine (or Unity)
+3. Makes decisions under pressure with real consequences in the simulation
+4. Game engine reports gameplay data back to the Simvado platform
+5. Multi-dimensional scorecard measures governance, ethics, risk management, and strategy
+6. AI-generated debrief provides personalized coaching
 
 ### The Market
 

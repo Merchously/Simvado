@@ -8,17 +8,17 @@
 
 | Tier | Price | Access |
 |------|-------|--------|
-| Free Demo | $0 | 1 simulation module (Act 1 of Boardroom Under Pressure) |
-| Pro Monthly | $79/month | Full access to all published simulations |
-| Pro Annual | $699/year | Full access + priority new releases |
+| Free | $0 | Access to 1 simulation from the library |
+| Pro Monthly | $79/month | Unlimited simulation library access |
+| Pro Annual | $699/year | Unlimited access + priority new releases |
 
-The free demo is critical for top-of-funnel conversion. It gives prospects a taste of the cinematic simulation experience with no commitment.
+The free tier is critical for top-of-funnel conversion. It gives prospects a taste of the immersive simulation experience with no commitment.
 
 **Enterprise Pilot Program**
 
 | Package | Price | Includes |
 |---------|-------|----------|
-| Pilot (up to 25 seats) | $12,500 | 90-day access, onboarding call, usage report |
+| Pilot (up to 25 seats) | $12,500 | 90-day access, onboarding call, analytics report |
 | Standard (up to 100 seats) | $25,000/year | Full access, admin dashboard, quarterly reviews |
 | Enterprise (100+ seats) | Custom pricing | SSO, custom reporting, dedicated support |
 
