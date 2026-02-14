@@ -101,11 +101,11 @@ export default async function HomePage() {
         slug: sim.slug,
         title: sim.title,
         category: sim.category,
-        difficulty: sim.difficulty,
+        difficulty: sim.difficulty as string,
         description: sim.description,
-        thumbnailUrl: sim.thumbnailUrl,
+        thumbnailUrl: sim.thumbnailUrl ?? "",
         moduleCount: sim.modules.length,
-        estimatedDurationMin: sim.estimatedDurationMin,
+        estimatedDurationMin: sim.estimatedDurationMin ?? 60,
       }));
     }
   } catch {
