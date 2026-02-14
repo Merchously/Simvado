@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
@@ -56,8 +57,20 @@ export default async function SimulationsPage() {
                 href={`/simulations/${sim.slug}`}
                 className="group rounded-2xl border border-border-subtle bg-surface-raised overflow-hidden hover:border-brand-600/50 transition"
               >
-                <div className="aspect-video bg-surface-overlay flex items-center justify-center">
-                  <span className="text-4xl">🎬</span>
+                <div className="aspect-video bg-surface-overlay relative overflow-hidden">
+                  {sim.thumbnailUrl ? (
+                    <Image
+                      src={sim.thumbnailUrl}
+                      alt={sim.title}
+                      fill
+                      className="object-cover group-hover:scale-105 transition-transform duration-500"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <span className="text-4xl">🎬</span>
+                    </div>
+                  )}
                 </div>
 
                 <div className="p-6">

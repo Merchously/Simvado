@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
@@ -21,7 +22,7 @@ async function MoreFromStudio({
       status: "published",
       id: { not: currentSimId },
     },
-    select: { id: true, slug: true, title: true, category: true },
+    select: { id: true, slug: true, title: true, category: true, thumbnailUrl: true },
     take: 3,
   });
 
@@ -43,10 +44,23 @@ async function MoreFromStudio({
           <Link
             key={s.id}
             href={`/simulations/${s.slug}`}
-            className="p-4 rounded-lg bg-surface-overlay hover:bg-surface-overlay/70 transition"
+            className="rounded-lg bg-surface-overlay hover:bg-surface-overlay/70 transition overflow-hidden"
           >
-            <p className="font-medium text-sm">{s.title}</p>
-            <p className="text-xs text-text-muted mt-1">{s.category}</p>
+            {s.thumbnailUrl && (
+              <div className="relative aspect-video">
+                <Image
+                  src={s.thumbnailUrl}
+                  alt={s.title}
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 640px) 100vw, 33vw"
+                />
+              </div>
+            )}
+            <div className="p-4">
+              <p className="font-medium text-sm">{s.title}</p>
+              <p className="text-xs text-text-muted mt-1">{s.category}</p>
+            </div>
           </Link>
         ))}
       </div>
@@ -87,6 +101,21 @@ export default async function SimulationDetailPage({ params }: Props) {
 
   return (
     <div className="max-w-4xl mx-auto space-y-10">
+      {/* Hero Image */}
+      {simulation.thumbnailUrl && (
+        <div className="relative aspect-[21/9] w-full rounded-2xl overflow-hidden">
+          <Image
+            src={simulation.thumbnailUrl}
+            alt={simulation.title}
+            fill
+            className="object-cover"
+            sizes="(max-width: 896px) 100vw, 896px"
+            priority
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-surface via-transparent to-transparent" />
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <Link
