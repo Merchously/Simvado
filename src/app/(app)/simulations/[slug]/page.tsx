@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { db } from "@/lib/db";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -103,12 +103,25 @@ export default async function SimulationDetailPage({ params }: Props) {
                     Free
                   </span>
                 )}
-                <Link
-                  href={`/simulations/${slug}/${mod.slug}`}
-                  className="text-sm px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium transition"
-                >
-                  Start
-                </Link>
+                {mod.platform && (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-surface-overlay text-text-muted capitalize">
+                    {mod.platform}
+                  </span>
+                )}
+                {mod.launchUrl ? (
+                  <a
+                    href={mod.launchUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm px-4 py-2 rounded-lg bg-brand-600 hover:bg-brand-700 text-white font-medium transition"
+                  >
+                    Launch
+                  </a>
+                ) : (
+                  <span className="text-sm px-4 py-2 rounded-lg bg-surface-overlay text-text-muted font-medium">
+                    Coming Soon
+                  </span>
+                )}
               </div>
             </div>
           ))}

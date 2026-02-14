@@ -1,17 +1,156 @@
 # API Design
 
-REST API contracts for the Simvado platform. All endpoints are prefixed with `/api`. Authentication uses Clerk JWT tokens passed as Bearer tokens.
+REST API contracts for the Simvado platform. All endpoints are prefixed with `/api`.
 
 ## Authentication
 
-All authenticated endpoints require:
+The platform has two authentication mechanisms:
+
+### 1. Clerk JWT (Platform Users)
+
+For platform-facing endpoints (dashboard, catalog, analytics). Passed as Bearer token.
+
 ```
 Authorization: Bearer <clerk_jwt_token>
 ```
 
 Role-based access is enforced server-side. Roles: `individual`, `enterprise_admin`, `enterprise_participant`, `studio_creator`, `platform_admin`.
 
-## API Endpoints
+### 2. API Key (Game Engines)
+
+For game engine integration endpoints (`/api/game/*`). API keys are SHA-256 hashed and stored in the `api_keys` table.
+
+```
+Authorization: Bearer sk_sim_<random_hex>
+```
+
+API keys are scoped per simulation and have configurable expiration.
+
+## Game Engine API (`/api/game/*`)
+
+These endpoints are used by game engines (Unreal, Unity, etc.) to report gameplay data to the platform. Authenticated via API key.
+
+| Method | Endpoint | Description | Auth |
+|--------|----------|-------------|------|
+| POST | `/api/game/sessions` | Create a new session | API Key |
+| GET | `/api/game/sessions/:id` | Get session state | API Key |
+| POST | `/api/game/sessions/:id/events` | Report game events (decisions, milestones, scores) | API Key |
+| GET | `/api/game/sessions/:id/events` | List events for a session | API Key |
+| POST | `/api/game/sessions/:id/complete` | Signal session completion with final scores | API Key |
+
+### POST /api/game/sessions
+
+Create a session when a player starts a simulation in the game engine.
+
+**Request:**
+```json
+{
+  "userId": "uuid",
+  "moduleId": "uuid",
+  "externalSessionId": "game-engine-session-123",
+  "platform": "unreal"
+}
+```
+
+**Response (201):**
+```json
+{
+  "sessionId": "uuid",
+  "externalSessionId": "game-engine-session-123"
+}
+```
+
+### GET /api/game/sessions/:id
+
+Read session state including user, module, and events.
+
+**Response (200):**
+```json
+{
+  "id": "uuid",
+  "status": "in_progress",
+  "userId": "uuid",
+  "moduleId": "uuid",
+  "platform": "unreal",
+  "startedAt": "2026-03-15T14:00:00Z",
+  "user": { "id": "uuid", "name": "Jane Doe", "email": "jane@example.com" },
+  "module": { "id": "uuid", "title": "Activist Investor Showdown", "simulationId": "uuid" },
+  "gameEvents": [...]
+}
+```
+
+### POST /api/game/sessions/:id/events
+
+Report gameplay events. Supports single events or batches.
+
+**Request (single):**
+```json
+{
+  "eventType": "decision",
+  "eventData": {
+    "nodeKey": "decision_1",
+    "selectedOption": "A",
+    "label": "Negotiate a single seat",
+    "timeSpentSeconds": 47,
+    "optionsAvailable": ["A", "B", "C"]
+  },
+  "timestamp": "2026-03-15T14:05:30Z"
+}
+```
+
+**Request (batch):**
+```json
+{
+  "events": [
+    { "eventType": "decision", "eventData": {...}, "timestamp": "..." },
+    { "eventType": "score_update", "eventData": {...}, "timestamp": "..." }
+  ]
+}
+```
+
+**Response (201):**
+```json
+{
+  "created": 1,
+  "eventIds": ["uuid"]
+}
+```
+
+**Valid event types:** `decision`, `milestone`, `score_update`, `completion`, `custom`
+
+### POST /api/game/sessions/:id/complete
+
+Signal that a simulation session is complete. Triggers AI debrief generation.
+
+**Request:**
+```json
+{
+  "finalScores": {
+    "financial": 72,
+    "reputational": 68,
+    "ethical": 85,
+    "stakeholder_confidence": 63,
+    "long_term_stability": 74,
+    "total": 73.15
+  },
+  "totalDurationSeconds": 2847
+}
+```
+
+**Response (200):**
+```json
+{
+  "sessionId": "uuid",
+  "status": "completed",
+  "finalScores": {...},
+  "debriefText": "## Your Performance...",
+  "debriefGeneratedAt": "2026-03-15T14:50:00Z"
+}
+```
+
+---
+
+## Platform API (Clerk JWT Auth)
 
 ### Auth & User Profile
 
@@ -27,14 +166,14 @@ Role-based access is enforced server-side. Roles: `individual`, `enterprise_admi
 |--------|----------|-------------|------|
 | GET | `/api/simulations` | List published simulations (with filters) | Any authenticated |
 | GET | `/api/simulations/:slug` | Get simulation detail + module list | Any authenticated |
-| GET | `/api/simulations/:slug/modules/:moduleSlug` | Get module detail (narrative, stakeholders) | Any authenticated (subscription check) |
+| GET | `/api/simulations/:slug/modules/:moduleSlug` | Get module detail | Any authenticated (subscription check) |
 
 **Query parameters for GET /api/simulations:**
 ```
 ?category=Executive+Leadership
 &difficulty=advanced
 &skill=Crisis+Response
-&format=branching_narrative
+&format=unreal_3d
 &page=1
 &limit=20
 &sort=newest|popular
@@ -49,7 +188,7 @@ Role-based access is enforced server-side. Roles: `individual`, `enterprise_admi
   "description": "...",
   "category": "Executive Leadership",
   "difficulty": "executive",
-  "format": "branching_narrative",
+  "format": "unreal_3d",
   "skillTags": ["Governance", "Risk Management", "Ethical Judgment"],
   "estimatedDurationMin": 60,
   "thumbnailUrl": "https://cdn.simvado.com/...",
@@ -60,85 +199,51 @@ Role-based access is enforced server-side. Roles: `individual`, `enterprise_admi
       "slug": "activist-investor-showdown",
       "sortOrder": 1,
       "isFreeDemo": true,
-      "estimatedDurationMin": 45
+      "estimatedDurationMin": 45,
+      "platform": "unreal",
+      "launchUrl": "simvado://launch/bup-module-1",
+      "buildVersion": "1.0.0"
     }
   ]
 }
 ```
 
-### Simulation Player (Session)
+### Sessions & Analytics (Platform Users)
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
-| POST | `/api/sessions` | Start a new simulation session | Any authenticated |
-| GET | `/api/sessions/:id` | Get session state (current node, scores) | Session owner |
-| GET | `/api/sessions/:id/node` | Get current decision node with options | Session owner |
-| POST | `/api/sessions/:id/decide` | Submit a decision | Session owner |
-| GET | `/api/sessions/:id/scorecard` | Get final scorecard | Session owner |
-| GET | `/api/sessions/:id/debrief` | Get AI-generated debrief | Session owner |
+| POST | `/api/sessions` | Create a new session (from platform UI) | Any authenticated |
+| GET | `/api/sessions/:id/analytics` | Get session analytics (scores, event timeline) | Session owner |
+| GET | `/api/sessions/:id/debrief` | Get or generate AI debrief | Session owner |
 
-**Request: POST /api/sessions**
+**Response: GET /api/sessions/:id/analytics**
 ```json
 {
-  "moduleId": "uuid"
-}
-```
-
-**Response: GET /api/sessions/:id/node**
-```json
-{
-  "nodeKey": "decision_1",
-  "promptText": "The activist investor has demanded two board seats...",
-  "timerSeconds": 90,
-  "preVideoUrl": "https://cdn.simvado.com/...",
-  "contextDocuments": [
-    { "title": "Investor Letter", "type": "email", "contentMarkdown": "..." }
-  ],
-  "options": [
-    {
-      "id": "uuid",
-      "optionKey": "A",
-      "label": "Negotiate a single seat",
-      "description": "Offer one board seat as a compromise..."
-    },
-    {
-      "id": "uuid",
-      "optionKey": "B",
-      "label": "Reject the demand entirely",
-      "description": "Stand firm on current board composition..."
-    },
-    {
-      "id": "uuid",
-      "optionKey": "C",
-      "label": "Accept both seats",
-      "description": "Concede to avoid a public proxy fight..."
-    }
-  ]
-}
-```
-
-**Request: POST /api/sessions/:id/decide**
-```json
-{
-  "optionId": "uuid",
-  "timeSpentSeconds": 47
-}
-```
-
-**Response: POST /api/sessions/:id/decide**
-```json
-{
-  "consequenceVideoUrl": "https://cdn.simvado.com/...",
-  "aiDialogue": "The board erupts. The CFO leans over and whispers...",
-  "runningScores": {
-    "financial": 65,
-    "reputational": 72,
-    "ethical": 80,
-    "stakeholderConfidence": 58,
-    "longTermStability": 70
+  "session": {
+    "id": "uuid",
+    "status": "completed",
+    "startedAt": "2026-03-15T14:00:00Z",
+    "completedAt": "2026-03-15T14:47:27Z",
+    "totalDurationSeconds": 2847,
+    "platform": "unreal"
   },
-  "nextNodeKey": "decision_2",
-  "isComplete": false
+  "simulation": {
+    "title": "Boardroom Under Pressure",
+    "module": "Activist Investor Showdown"
+  },
+  "finalScores": {
+    "financial": 72,
+    "reputational": 68,
+    "ethical": 85,
+    "stakeholder_confidence": 63,
+    "long_term_stability": 74,
+    "total": 73.15
+  },
+  "timeline": {
+    "decisions": [...],
+    "milestones": [...],
+    "scoreUpdates": [...]
+  }
 }
 ```
 
@@ -162,15 +267,6 @@ Role-based access is enforced server-side. Roles: `individual`, `enterprise_admi
 | GET | `/api/org/analytics` | Get aggregate analytics | Enterprise admin |
 | GET | `/api/org/analytics/export` | Export analytics as CSV/PDF | Enterprise admin |
 
-**Request: POST /api/org/assignments**
-```json
-{
-  "simulationId": "uuid",
-  "userIds": ["uuid", "uuid", "uuid"],
-  "dueDate": "2026-04-15"
-}
-```
-
 ### Billing
 
 | Method | Endpoint | Description | Auth |
@@ -189,9 +285,8 @@ Role-based access is enforced server-side. Roles: `individual`, `enterprise_admi
 | POST | `/api/admin/simulations/:id/publish` | Publish simulation | Platform admin |
 | POST | `/api/admin/modules` | Create module within simulation | Platform admin |
 | PATCH | `/api/admin/modules/:id` | Update module content | Platform admin |
-| POST | `/api/admin/modules/:id/nodes` | Create decision node | Platform admin |
-| PATCH | `/api/admin/nodes/:id` | Update decision node | Platform admin |
-| POST | `/api/admin/nodes/:id/options` | Create node option | Platform admin |
+| POST | `/api/admin/api-keys` | Generate API key for game engine integration | Platform admin |
+| DELETE | `/api/admin/api-keys/:id` | Revoke API key | Platform admin |
 | POST | `/api/admin/media/upload` | Upload media asset | Platform admin |
 
 ## Error Response Format
@@ -200,11 +295,7 @@ All errors follow a consistent format:
 
 ```json
 {
-  "error": {
-    "code": "FORBIDDEN",
-    "message": "You do not have access to this resource.",
-    "details": {}
-  }
+  "error": "Human-readable error message"
 }
 ```
 
@@ -214,7 +305,8 @@ Standard HTTP status codes: 200, 201, 400, 401, 403, 404, 422, 429, 500.
 
 | Endpoint Category | Limit |
 |-------------------|-------|
-| General API | 100 requests/minute per user |
-| AI endpoints (debrief, dialogue) | 20 requests/minute per user |
+| Platform API | 100 requests/minute per user |
+| Game Engine API | 500 requests/minute per API key |
+| AI endpoints (debrief) | 20 requests/minute per user |
 | Webhooks | 1000 requests/minute |
 | Media upload | 10 requests/minute per user |

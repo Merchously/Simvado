@@ -53,6 +53,24 @@ enum SimFormat {
   realtime_crisis
   ai_adaptive
   multiplayer_board
+  unreal_3d
+  unity_3d
+  external_custom
+}
+
+enum GamePlatform {
+  unreal
+  unity
+  web
+  other
+}
+
+enum GameEventType {
+  decision
+  milestone
+  score_update
+  completion
+  custom
 }
 
 enum SessionStatus {
@@ -155,63 +173,27 @@ model Simulation {
 }
 
 model Module {
-  id                  String  @id @default(uuid()) @db.Uuid
-  simulationId        String  @map("simulation_id") @db.Uuid
+  id                  String           @id @default(uuid()) @db.Uuid
+  simulationId        String           @map("simulation_id") @db.Uuid
   title               String
   slug                String
-  sortOrder           Int     @default(0) @map("sort_order")
-  narrativeContext    String? @map("narrative_context") @db.Text
+  sortOrder           Int              @default(0) @map("sort_order")
+  narrativeContext    String?          @map("narrative_context") @db.Text
   stakeholders        Json?
-  isFreeDemo          Boolean @default(false) @map("is_free_demo")
-  estimatedDurationMin Int?   @map("estimated_duration_min")
+  isFreeDemo          Boolean          @default(false) @map("is_free_demo")
+  estimatedDurationMin Int?            @map("estimated_duration_min")
   status              SimulationStatus @default(draft)
-  createdAt           DateTime @default(now()) @map("created_at")
+  createdAt           DateTime         @default(now()) @map("created_at")
+  launchUrl           String?          @map("launch_url")
+  platform            GamePlatform?
+  buildVersion        String?          @map("build_version")
 
-  simulation    Simulation     @relation(fields: [simulationId], references: [id], onDelete: Cascade)
-  decisionNodes DecisionNode[]
-  mediaAssets   MediaAsset[]
-  sessions      Session[]
+  simulation  Simulation   @relation(fields: [simulationId], references: [id], onDelete: Cascade)
+  mediaAssets MediaAsset[]
+  sessions    Session[]
 
   @@unique([simulationId, slug])
   @@map("modules")
-}
-
-model DecisionNode {
-  id                String  @id @default(uuid()) @db.Uuid
-  moduleId          String  @map("module_id") @db.Uuid
-  nodeKey           String  @map("node_key")
-  promptText        String  @map("prompt_text") @db.Text
-  sortOrder         Int     @default(0) @map("sort_order")
-  timerSeconds      Int?    @map("timer_seconds")
-  preVideoUrl       String? @map("pre_video_url")
-  contextDocuments  Json?   @map("context_documents")
-  aiPromptTemplate  String? @map("ai_prompt_template") @db.Text
-  createdAt         DateTime @default(now()) @map("created_at")
-
-  module           Module            @relation(fields: [moduleId], references: [id], onDelete: Cascade)
-  options          NodeOption[]
-  sessionDecisions SessionDecision[]
-
-  @@unique([moduleId, nodeKey])
-  @@map("decision_nodes")
-}
-
-model NodeOption {
-  id                String  @id @default(uuid()) @db.Uuid
-  decisionNodeId    String  @map("decision_node_id") @db.Uuid
-  optionKey         String  @map("option_key")
-  label             String
-  description       String  @db.Text
-  consequenceVideoUrl String? @map("consequence_video_url")
-  nextNodeKey       String? @map("next_node_key")
-  scoreImpacts      Json    @map("score_impacts")
-  createdAt         DateTime @default(now()) @map("created_at")
-
-  decisionNode     DecisionNode      @relation(fields: [decisionNodeId], references: [id], onDelete: Cascade)
-  sessionDecisions SessionDecision[]
-
-  @@unique([decisionNodeId, optionKey])
-  @@map("node_options")
 }
 
 model MediaAsset {
@@ -229,7 +211,7 @@ model MediaAsset {
   @@map("media_assets")
 }
 
-// ─── Player Sessions ────────────────────────────────
+// ─── Sessions & Game Events ─────────────────────────
 
 model Session {
   id                   String        @id @default(uuid()) @db.Uuid
@@ -243,34 +225,53 @@ model Session {
   finalScores          Json?         @map("final_scores")
   debriefText          String?       @map("debrief_text") @db.Text
   debriefGeneratedAt   DateTime?     @map("debrief_generated_at")
+  externalSessionId    String?       @unique @map("external_session_id")
+  platform             GamePlatform?
+  launchUrl            String?       @map("launch_url")
 
-  user         User              @relation(fields: [userId], references: [id])
-  module       Module            @relation(fields: [moduleId], references: [id])
-  organization Organization?     @relation(fields: [organizationId], references: [id])
-  decisions    SessionDecision[]
+  user         User          @relation(fields: [userId], references: [id])
+  module       Module        @relation(fields: [moduleId], references: [id])
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  gameEvents   GameEvent[]
 
   @@index([userId])
   @@index([moduleId])
   @@index([organizationId])
+  @@index([externalSessionId])
   @@map("sessions")
 }
 
-model SessionDecision {
-  id                String   @id @default(uuid()) @db.Uuid
-  sessionId         String   @map("session_id") @db.Uuid
-  decisionNodeId    String   @map("decision_node_id") @db.Uuid
-  selectedOptionId  String   @map("selected_option_id") @db.Uuid
-  timeSpentSeconds  Int?     @map("time_spent_seconds")
-  aiDialogueResponse String? @map("ai_dialogue_response") @db.Text
-  scoreSnapshot     Json?    @map("score_snapshot")
-  decidedAt         DateTime @default(now()) @map("decided_at")
+model GameEvent {
+  id         String        @id @default(uuid()) @db.Uuid
+  sessionId  String        @map("session_id") @db.Uuid
+  eventType  GameEventType @map("event_type")
+  eventData  Json          @map("event_data")
+  timestamp  DateTime      @default(now())
+  receivedAt DateTime      @default(now()) @map("received_at")
 
-  session      Session      @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  decisionNode DecisionNode @relation(fields: [decisionNodeId], references: [id])
-  selectedOption NodeOption  @relation(fields: [selectedOptionId], references: [id])
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 
   @@index([sessionId])
-  @@map("session_decisions")
+  @@index([eventType])
+  @@map("game_events")
+}
+
+// ─── API Keys (Game Engine Auth) ────────────────────
+
+model ApiKey {
+  id             String    @id @default(uuid()) @db.Uuid
+  name           String
+  keyHash        String    @unique @map("key_hash")
+  keyPrefix      String    @map("key_prefix")
+  simulationId   String?   @map("simulation_id") @db.Uuid
+  organizationId String?   @map("organization_id") @db.Uuid
+  scopes         String[]  @default(["game:write"])
+  isActive       Boolean   @default(true) @map("is_active")
+  lastUsedAt     DateTime? @map("last_used_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  expiresAt      DateTime? @map("expires_at")
+
+  @@map("api_keys")
 }
 
 // ─── Enterprise Features ────────────────────────────

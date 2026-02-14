@@ -21,7 +21,7 @@ export default async function SimulationsPage() {
       <div>
         <h1 className="text-3xl font-bold">Simulations</h1>
         <p className="mt-1 text-text-secondary">
-          Choose a simulation and start practicing real decisions.
+          Browse the library and launch simulations built by industry experts.
         </p>
       </div>
 

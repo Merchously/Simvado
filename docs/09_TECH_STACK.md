@@ -1,73 +1,89 @@
 # Technology Stack
 
-Concrete technology choices for the Simvado platform, with rationale for each decision.
+Concrete technology choices for the **Simvado platform**, with rationale for each decision.
 
-## Frontend
+**Important:** This document covers the platform only. Simulations are built in external game engines (Unreal Engine, Unity, etc.) and are NOT part of the platform codebase. Game engines connect to the platform via the Game Engine API.
+
+## Platform Frontend
 
 | Technology | Purpose | Rationale |
 |-----------|---------|-----------|
-| **Next.js 14+ (App Router)** | Full-stack React framework | SSR for marketing/SEO, client-side for simulation player, API routes for backend |
-| **React 18+** | UI library | Component model, ecosystem, team familiarity |
+| **Next.js 15 (App Router)** | Full-stack React framework | SSR for marketing/SEO, server components for dashboard, API routes for backend |
+| **React 19** | UI library | Component model, ecosystem, team familiarity |
 | **Tailwind CSS** | Styling | Rapid UI development, consistent design system |
-| **GSAP** | Animation | Smooth transitions, cinematic UI effects in simulation player |
-| **Zustand** | Client state management | Lightweight, handles simulation player state (current node, scores, timer) |
 | **React Query (TanStack)** | Server state management | Caching, loading states, API data synchronization |
 
-**Note:** Three.js is **not** needed for Phase 1. The flagship simulation is video-driven cinematic, not 3D-rendered. Three.js may be evaluated for Phase 2+ if multiplayer board simulations require spatial rendering.
+**Note:** The platform does NOT include a simulation player. Simulations run in external game engines. The platform provides catalog browsing, analytics dashboards, AI debriefs, and enterprise management.
 
-## Backend
+## Platform Backend
 
 | Technology | Purpose | Rationale |
 |-----------|---------|-----------|
 | **Node.js (via Next.js API routes)** | API server | Unified deployment with frontend, TypeScript end-to-end |
-| **PostgreSQL** | Primary database | Relational data (users, orgs, sessions), JSONB for simulation state |
+| **PostgreSQL** | Primary database | Relational data (users, orgs, sessions), JSONB for game event data and scores |
 | **Prisma** | ORM | Type-safe queries, migrations, schema-as-code |
-| **Redis** | Cache + real-time | Session cache, simulation state for real-time scenarios, rate limiting |
+| **Redis** | Cache + real-time | Session cache, rate limiting |
 | **Stripe** | Payments | Subscriptions, invoicing, Stripe Connect for Phase 3 marketplace |
+
+## Game Engine Integration
+
+| Technology | Purpose | Rationale |
+|-----------|---------|-----------|
+| **Game Engine API** | REST API for game engines | Session creation, event reporting, score submission, completion signaling |
+| **API Key Authentication** | SHA-256 hashed keys | Separate from Clerk JWT — game engines authenticate with API keys, not user sessions |
+| **GameEvent model** | Generic event storage | Flexible JSONB event data supports any game engine's data format |
+
+### Supported Game Engines
+
+| Engine | Status | Integration Method |
+|--------|--------|-------------------|
+| **Unreal Engine** | Phase 1 (flagship) | HTTP REST calls from Unreal to Simvado API |
+| **Unity** | Phase 1 | HTTP REST calls from Unity to Simvado API |
+| **Web-based** | Phase 2 | Browser-based games calling Simvado API via JavaScript |
+| **Custom** | Phase 3 | Any engine implementing the API contract |
+
+### API Endpoints for Game Engines
+
+| Route | Purpose |
+|-------|---------|
+| `POST /api/game/sessions` | Create a session |
+| `GET /api/game/sessions/:id` | Read session state |
+| `POST /api/game/sessions/:id/events` | Report events (decisions, milestones, scores) |
+| `POST /api/game/sessions/:id/complete` | Signal completion + final scores |
 
 ## Authentication
 
 | Technology | Purpose | Rationale |
 |-----------|---------|-----------|
-| **Clerk** | Auth provider | Email/password, OAuth (Google, Microsoft), JWT, role-based access, enterprise SSO (SAML) ready |
+| **Clerk** | Auth provider (platform users) | Email/password, OAuth (Google, Microsoft), JWT, role-based access, enterprise SSO (SAML) ready |
+| **API Keys** | Auth for game engines | SHA-256 hashed keys with scopes, expiration, and per-simulation access control |
 
-Clerk handles: registration, login, session management, org/team structure, and webhook events for user lifecycle. Avoids building custom auth.
+Clerk handles: registration, login, session management, org/team structure, and webhook events for user lifecycle.
 
 ## AI Layer
 
 | Technology | Purpose | Rationale |
 |-----------|---------|-----------|
-| **Claude API (Anthropic)** | Primary AI engine | Dialogue generation, debrief generation, adaptive scenario logic |
-| **Custom Decision Engine** | Deterministic game logic | Decision tree traversal, scoring calculation, state management — no AI needed |
+| **Claude API (Anthropic)** | Primary AI engine | Debrief generation, coaching analysis, enterprise report generation |
 
-**Architecture principle:** AI handles generative tasks (dialogue, debrief, adaptation). Deterministic tasks (scoring, branching, state) use structured JSON logic — no LLM in the scoring loop.
+**Architecture principle:** AI handles generative tasks on the platform side (debriefs, coaching, reports). Gameplay logic, scoring, and decision branching are handled by the game engine — no LLM in the gameplay loop.
 
-### AI Usage by Agent
+### AI Usage
 
-| Agent | AI Model | Frequency | Latency Requirement |
-|-------|----------|-----------|-------------------|
-| Dialogue Writer | Claude | Per decision node | < 3 seconds |
-| Debrief Generator | Claude | End of simulation | < 10 seconds |
-| Adaptive Engine | Claude | Per decision round | < 5 seconds |
-| Scoring Engine | None (deterministic) | Per decision node | < 100ms |
+| Feature | AI Model | When | Latency Requirement |
+|---------|----------|------|-------------------|
+| Debrief Generator | Claude Sonnet | After session completion | < 10 seconds |
 | Enterprise Analytics | Claude | On-demand (reports) | < 30 seconds |
-
-## Media & Storage
-
-| Technology | Purpose | Rationale |
-|-----------|---------|-----------|
-| **Cloudflare R2** | Object storage (video, images, audio) | S3-compatible, no egress fees, global CDN built-in |
-| **Cloudflare CDN** | Asset delivery | Fast video streaming, edge caching |
-| **FFmpeg (server-side)** | Video transcoding | Adaptive bitrate for different connections |
 
 ## Infrastructure & Deployment
 
 | Technology | Purpose | Rationale |
 |-----------|---------|-----------|
-| **Vercel** | Frontend + API hosting | Native Next.js support, auto-scaling, preview deployments |
-| **Railway** | Database hosting (PostgreSQL + Redis) | Simple managed databases, autoscaling |
-| **Docker** | Local development + CI | Consistent dev environment, database containers |
-| **GitHub Actions** | CI/CD pipeline | Automated testing, linting, deployment on push |
+| **Hostinger VPS** | Application hosting | Docker-based deployment, cost-effective for Phase 1 |
+| **Docker + Docker Compose** | Container orchestration | Consistent deployments with Traefik reverse proxy |
+| **Traefik** | Reverse proxy + SSL | Automatic HTTPS via Let's Encrypt, domain routing |
+| **GitHub Actions** | CI/CD pipeline | Lint → Build → Deploy on push to main |
+| **GitHub Container Registry** | Docker image storage | Private image hosting for deployment |
 | **GitHub** | Source control | Repository, PRs, issue tracking |
 
 ## Automation
@@ -91,5 +107,4 @@ Clerk handles: registration, login, session management, org/team structure, and 
 | TypeScript | End-to-end type safety (frontend + backend) |
 | ESLint + Prettier | Code quality and formatting |
 | Vitest | Unit and integration testing |
-| Playwright | E2E testing for simulation player |
-| Storybook | UI component development and documentation |
+| Playwright | E2E testing for platform flows |

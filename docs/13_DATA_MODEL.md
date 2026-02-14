@@ -1,20 +1,22 @@
 # Data Model
 
-Database schema for the Simvado platform. Uses PostgreSQL with Prisma ORM. JSONB columns are used for flexible simulation data structures.
+Database schema for the Simvado platform. Uses PostgreSQL with Prisma ORM. JSONB columns are used for flexible game event data and scoring structures.
 
 ## Entity Relationship Overview
 
 ```
 User ──────────┐
-               ├── Session ── SessionDecision
+               ├── Session ── GameEvent
 Organization ──┘        │
   │                     └── Score
   ├── OrgMembership
   ├── SimulationAssignment
   │
-Simulation ── Module ── DecisionNode ── NodeOption
+Simulation ── Module
                 │
                 └── MediaAsset
+
+ApiKey (for game engine authentication)
 ```
 
 ## Core Tables
@@ -73,7 +75,7 @@ Managed by Clerk (external). Simvado stores a mirror record for relational joins
 | category | VARCHAR(100) | Primary category (e.g., "Executive Leadership") |
 | skill_tags | TEXT[] | Array of skill tags |
 | difficulty | ENUM | `foundational`, `intermediate`, `advanced`, `executive` |
-| format | ENUM | `branching_narrative`, `realtime_crisis`, `ai_adaptive`, `multiplayer_board` |
+| format | ENUM | `branching_narrative`, `realtime_crisis`, `ai_adaptive`, `multiplayer_board`, `unreal_3d`, `unity_3d`, `external_custom` |
 | status | ENUM | `draft`, `review`, `staged`, `published`, `archived` |
 | thumbnail_url | VARCHAR(500) | Cover image URL |
 | estimated_duration_min | INTEGER | Expected play time in minutes |
@@ -94,41 +96,46 @@ Each simulation contains one or more modules (standalone playable scenarios).
 | title | VARCHAR(255) | Module title (e.g., "Activist Investor Showdown") |
 | slug | VARCHAR(100) | |
 | sort_order | INTEGER | Display order within simulation |
-| narrative_context | TEXT | Markdown — background briefing for the player |
+| narrative_context | TEXT | Markdown — background briefing |
 | stakeholders | JSONB | Array of NPC profiles (name, role, motivation, portrait_url) |
 | is_free_demo | BOOLEAN | Whether this module is available in free tier |
 | estimated_duration_min | INTEGER | |
+| launch_url | VARCHAR(500) | URL to launch the game engine application |
+| platform | ENUM | `unreal`, `unity`, `web`, `other` |
+| build_version | VARCHAR(50) | Game engine build version identifier |
 | status | ENUM | `draft`, `published`, `archived` |
 | created_at | TIMESTAMP | |
 
-### decision_nodes
+### game_events
+
+Generic event storage for data reported by game engines during gameplay.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
-| module_id | UUID | FK → modules |
-| node_key | VARCHAR(50) | Unique key within module (e.g., "decision_1") |
-| prompt_text | TEXT | The question/situation presented to the player |
-| sort_order | INTEGER | Order within the module flow |
-| timer_seconds | INTEGER | Optional countdown timer (null = no timer) |
-| pre_video_url | VARCHAR(500) | Video to play before presenting options |
-| context_documents | JSONB | Array of prop documents (emails, reports) |
-| ai_prompt_template | TEXT | Prompt template for Dialogue Writer Agent |
-| created_at | TIMESTAMP | |
+| session_id | UUID | FK → sessions |
+| event_type | ENUM | `decision`, `milestone`, `score_update`, `completion`, `custom` |
+| event_data | JSONB | Flexible event payload (varies by event type) |
+| timestamp | TIMESTAMP | When the event occurred in-game |
+| received_at | TIMESTAMP | When the platform received the event |
 
-### node_options
+### api_keys
+
+API keys for game engine authentication (separate from Clerk user auth).
 
 | Column | Type | Description |
 |--------|------|-------------|
 | id | UUID | Primary key |
-| decision_node_id | UUID | FK → decision_nodes |
-| option_key | VARCHAR(10) | e.g., "A", "B", "C", "D" |
-| label | VARCHAR(255) | Short label displayed on decision card |
-| description | TEXT | Expanded description of the choice |
-| consequence_video_url | VARCHAR(500) | Video showing consequence of this choice |
-| next_node_key | VARCHAR(50) | Key of the next decision node (null = end of module) |
-| score_impacts | JSONB | `{ "financial": 15, "reputational": -10, "ethical": 20, ... }` |
+| name | VARCHAR(255) | Descriptive name (e.g., "BUP Unreal Build") |
+| key_hash | VARCHAR(255) | SHA-256 hash of the full API key (unique) |
+| key_prefix | VARCHAR(15) | First 15 chars for identification (e.g., "sk_sim_a1b2c3") |
+| simulation_id | UUID | FK → simulations (nullable — can scope to specific simulation) |
+| organization_id | UUID | FK → organizations (nullable) |
+| scopes | TEXT[] | Permission scopes (default: `["game:write"]`) |
+| is_active | BOOLEAN | Whether the key is active |
+| last_used_at | TIMESTAMP | Last API call with this key |
 | created_at | TIMESTAMP | |
+| expires_at | TIMESTAMP | Optional expiration date |
 
 ### media_assets
 
@@ -145,7 +152,7 @@ Each simulation contains one or more modules (standalone playable scenarios).
 
 ### sessions
 
-A session is one playthrough of a module by a user.
+A session is one playthrough of a module by a user. Created by the platform or game engine.
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -153,6 +160,9 @@ A session is one playthrough of a module by a user.
 | user_id | UUID | FK → users |
 | module_id | UUID | FK → modules |
 | organization_id | UUID | FK → organizations (nullable) |
+| external_session_id | VARCHAR(255) | Game engine's internal session ID (unique) |
+| platform | ENUM | `unreal`, `unity`, `web`, `other` |
+| launch_url | VARCHAR(500) | URL used to launch this session |
 | status | ENUM | `in_progress`, `completed`, `abandoned` |
 | started_at | TIMESTAMP | |
 | completed_at | TIMESTAMP | |
@@ -160,19 +170,6 @@ A session is one playthrough of a module by a user.
 | final_scores | JSONB | `{ "financial": 72, "reputational": 85, ... , "total": 78 }` |
 | debrief_text | TEXT | AI-generated debrief (Markdown) |
 | debrief_generated_at | TIMESTAMP | |
-
-### session_decisions
-
-| Column | Type | Description |
-|--------|------|-------------|
-| id | UUID | Primary key |
-| session_id | UUID | FK → sessions |
-| decision_node_id | UUID | FK → decision_nodes |
-| selected_option_id | UUID | FK → node_options |
-| time_spent_seconds | INTEGER | How long the player deliberated |
-| ai_dialogue_response | TEXT | Dialogue Writer Agent output for this decision |
-| score_snapshot | JSONB | Running score totals after this decision |
-| decided_at | TIMESTAMP | |
 
 ### simulation_assignments
 
@@ -196,9 +193,8 @@ Enterprise admins assign simulations to participants.
 CREATE INDEX idx_sessions_user_id ON sessions(user_id);
 CREATE INDEX idx_sessions_module_id ON sessions(module_id);
 CREATE INDEX idx_sessions_org_id ON sessions(organization_id);
-CREATE INDEX idx_session_decisions_session ON session_decisions(session_id);
-CREATE INDEX idx_decision_nodes_module ON decision_nodes(module_id);
-CREATE INDEX idx_node_options_node ON node_options(decision_node_id);
+CREATE INDEX idx_game_events_session ON game_events(session_id);
+CREATE INDEX idx_game_events_type ON game_events(event_type);
 CREATE INDEX idx_org_memberships_org ON org_memberships(organization_id);
 CREATE INDEX idx_org_memberships_user ON org_memberships(user_id);
 CREATE INDEX idx_assignments_org ON simulation_assignments(organization_id);
@@ -212,6 +208,5 @@ The JSONB columns store structured data that varies per simulation. Key schemas:
 
 - **scoring_config**: See 15_SIMULATION_SCHEMA.md for full specification
 - **stakeholders**: Array of `{ name, role, motivation, portrait_url, personality_traits[] }`
-- **score_impacts**: Object with 5 keys matching scoring dimensions, values are integers (-100 to +100)
-- **final_scores**: Object with 5 dimension scores + total + percentile
-- **context_documents**: Array of `{ title, type, content_markdown }`
+- **event_data**: Varies by event type — see 15_SIMULATION_SCHEMA.md for event schemas
+- **final_scores**: Object with dimension scores + total + percentile

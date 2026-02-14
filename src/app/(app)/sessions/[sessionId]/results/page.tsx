@@ -7,14 +7,6 @@ export const metadata: Metadata = { title: "Results — Simvado" };
 
 type Props = { params: Promise<{ sessionId: string }> };
 
-const DIMENSION_LABELS: Record<string, string> = {
-  financial: "Financial Impact",
-  reputational: "Reputational Risk",
-  ethical: "Ethical Integrity",
-  stakeholder_confidence: "Stakeholder Confidence",
-  long_term_stability: "Long-term Stability",
-};
-
 export default async function ResultsPage({ params }: Props) {
   const { sessionId } = await params;
 
@@ -27,6 +19,18 @@ export default async function ResultsPage({ params }: Props) {
 
   const scores = (session.finalScores as Record<string, number>) ?? {};
 
+  const scoringConfig = session.module.simulation.scoringConfig as {
+    dimensions?: { key: string; label: string; weight: number }[];
+  } | null;
+
+  const dimensions = scoringConfig?.dimensions ?? [
+    { key: "financial", label: "Financial Impact", weight: 0.2 },
+    { key: "reputational", label: "Reputational Risk", weight: 0.2 },
+    { key: "ethical", label: "Ethical Integrity", weight: 0.25 },
+    { key: "stakeholder_confidence", label: "Stakeholder Confidence", weight: 0.2 },
+    { key: "long_term_stability", label: "Long-term Stability", weight: 0.15 },
+  ];
+
   return (
     <div className="max-w-3xl mx-auto space-y-10">
       {/* Header */}
@@ -36,16 +40,19 @@ export default async function ResultsPage({ params }: Props) {
           {session.module.simulation.title}
         </h1>
         <p className="text-text-secondary">{session.module.title}</p>
+        {session.platform && (
+          <span className="mt-2 inline-block text-xs px-2.5 py-1 rounded-full bg-surface-overlay text-text-muted capitalize">
+            Played on {session.platform}
+          </span>
+        )}
       </div>
 
       {/* Total score */}
       <div className="text-center">
         <div className="inline-flex items-center justify-center h-28 w-28 rounded-full border-4 border-brand-600">
           <div>
-            <p className="text-3xl font-bold">{scores.total ?? "—"}</p>
-            <p className="text-xs text-text-muted">
-              {scores.grade ?? ""}
-            </p>
+            <p className="text-3xl font-bold">{scores.total ?? "---"}</p>
+            <p className="text-xs text-text-muted">{scores.grade ?? ""}</p>
           </div>
         </div>
       </div>
@@ -53,7 +60,7 @@ export default async function ResultsPage({ params }: Props) {
       {/* Dimension scores */}
       <div className="rounded-xl border border-border-subtle bg-surface-raised p-6 space-y-4">
         <h2 className="font-semibold">Score Breakdown</h2>
-        {Object.entries(DIMENSION_LABELS).map(([key, label]) => {
+        {dimensions.map(({ key, label }) => {
           const value = scores[key] ?? 0;
           return (
             <div key={key}>

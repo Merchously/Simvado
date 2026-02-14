@@ -46,8 +46,17 @@ export async function POST(req: Request) {
       userId: user.id,
       moduleId: simModule.id,
       organizationId: user.organizationId,
+      platform: simModule.platform ?? "other",
+      launchUrl: simModule.launchUrl,
     },
   });
 
-  return NextResponse.json({ sessionId: session.id }, { status: 201 });
+  return NextResponse.json(
+    {
+      sessionId: session.id,
+      launchUrl: simModule.launchUrl,
+      platform: simModule.platform,
+    },
+    { status: 201 }
+  );
 }

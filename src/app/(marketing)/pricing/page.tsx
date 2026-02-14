@@ -12,11 +12,11 @@ const tiers = [
     name: "Free",
     price: "$0",
     period: "",
-    description: "Try Module 1 of Boardroom Under Pressure. No card required.",
+    description: "Access one simulation from the library. No card required.",
     features: [
-      "1 full simulation module",
-      "5-axis scorecard",
-      "AI-generated debrief",
+      "1 simulation from the library",
+      "Multi-axis scorecard",
+      "AI-powered debrief",
       "Peer comparison",
     ],
     cta: "Start Free",
@@ -27,13 +27,13 @@ const tiers = [
     name: "Pro",
     price: "$79",
     period: "/month",
-    description: "Full access to every published simulation.",
+    description: "Full access to the entire simulation library.",
     features: [
-      "All simulation modules",
+      "Unlimited simulation library access",
       "Unlimited replays",
       "Full debrief history",
       "Priority new releases",
-      "Progress dashboard",
+      "Performance dashboard",
     ],
     cta: "Get Started",
     href: "/sign-up",
@@ -147,8 +147,8 @@ export default function PricingPage() {
           <h3 className="text-xl font-semibold">Enterprise Pilot Program</h3>
           <p className="mt-2 text-sm text-text-muted max-w-lg mx-auto">
             Try Simvado with up to 25 team members for 90 days. Includes
-            onboarding, a dedicated usage report, and full access to all
-            published simulations. Starting at $12,500.
+            onboarding, a dedicated analytics report, and full access to the
+            simulation library. Starting at $12,500.
           </p>
           <Link
             href="mailto:julius@simvado.com"

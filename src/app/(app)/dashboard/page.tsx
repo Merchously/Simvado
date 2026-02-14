@@ -35,7 +35,7 @@ export default async function DashboardPage() {
           Welcome back{dbUser?.name ? `, ${dbUser.name.split(" ")[0]}` : ""}
         </h1>
         <p className="mt-1 text-text-secondary">
-          Track your progress and continue your simulations.
+          Review your simulation results and analytics.
         </p>
       </div>
 
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
               href="/simulations"
               className="mt-4 inline-block px-6 py-2.5 rounded-xl bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium transition"
             >
-              Start Your First Simulation
+              Browse Simulations
             </Link>
           </div>
         ) : (
@@ -108,17 +108,9 @@ export default async function DashboardPage() {
                   >
                     {session.status.replace("_", " ")}
                   </span>
-                  {session.status === "in_progress" && (
-                    <Link
-                      href={`/play/${session.id}`}
-                      className="text-sm text-brand-400 hover:text-brand-300"
-                    >
-                      Resume
-                    </Link>
-                  )}
                   {session.status === "completed" && (
                     <Link
-                      href={`/play/${session.id}/results`}
+                      href={`/sessions/${session.id}/results`}
                       className="text-sm text-brand-400 hover:text-brand-300"
                     >
                       Results

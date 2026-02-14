@@ -22,8 +22,8 @@ function Hero() {
         </h1>
 
         <p className="mt-6 text-lg md:text-xl text-text-secondary max-w-2xl mx-auto leading-relaxed">
-          Practice high-stakes decisions in cinematic, AI-powered simulations.
-          Measurable. Repeatable. Built for executives, boards, and leaders.
+          Discover and launch immersive, AI-powered simulations built by
+          industry experts. Review your performance from one platform.
         </p>
 
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -139,28 +139,28 @@ function FlagshipPreview() {
 function Features() {
   const features = [
     {
-      icon: "🎬",
-      title: "Cinematic Simulations",
+      icon: "🎮",
+      title: "Immersive Simulations",
       description:
-        "Video-driven, immersive scenarios with branching narratives. Every decision shapes the story.",
+        "Built in professional game engines like Unreal and Unity. Cinematic quality that engages executives.",
     },
     {
       icon: "🤖",
-      title: "AI-Powered NPCs",
+      title: "AI-Powered Debriefs",
       description:
-        "Characters react dynamically to your choices. No two playthroughs are the same.",
+        "After every session, receive a personalized AI coaching debrief analyzing your decisions and outcomes.",
     },
     {
       icon: "📊",
-      title: "5-Axis Scoring",
+      title: "Multi-Axis Scoring",
       description:
         "Measure Financial Impact, Reputational Risk, Ethical Integrity, Stakeholder Confidence, and Long-term Stability.",
     },
     {
-      icon: "🧠",
-      title: "Personalized Debriefs",
+      icon: "📚",
+      title: "Simulation Library",
       description:
-        "AI-generated coaching that tells you what you did well, what you missed, and how to improve.",
+        "Browse a growing catalog of professional simulations across industries. Find the right challenge for your team.",
     },
     {
       icon: "🏢",
@@ -169,10 +169,10 @@ function Features() {
         "Track team performance, identify risk blind spots, and export reports across your organization.",
     },
     {
-      icon: "⏱️",
-      title: "Decision Under Pressure",
+      icon: "🔗",
+      title: "Game Engine Integration",
       description:
-        "Optional timers simulate real boardroom urgency. Make the call before time runs out.",
+        "Simulations connect to Simvado via APIs to report gameplay data. Launch directly from the platform.",
     },
   ];
 
@@ -213,27 +213,27 @@ function HowItWorks() {
   const steps = [
     {
       step: "01",
-      title: "Enter the scenario",
+      title: "Discover a simulation",
       description:
-        "You receive a briefing: the company, the crisis, the stakeholders, and the stakes.",
+        "Browse the catalog by industry, skill, or difficulty. Find the challenge that matches your development goals.",
     },
     {
       step: "02",
-      title: "Make decisions under pressure",
+      title: "Launch the experience",
       description:
-        "Face 3–4 decision points with real trade-offs. An optional timer raises the stakes.",
+        "Launch directly into immersive simulations built in professional game engines. Play on your terms.",
     },
     {
       step: "03",
-      title: "Watch consequences unfold",
+      title: "Make decisions under pressure",
       description:
-        "AI-powered characters react. The boardroom shifts. Your choices compound.",
+        "Face realistic scenarios with real trade-offs. Your gameplay data flows back to the platform in real time.",
     },
     {
       step: "04",
-      title: "Get your scorecard & debrief",
+      title: "Review your scorecard & debrief",
       description:
-        "See your 5-axis score, compare to peers, and receive personalized AI coaching.",
+        "See your multi-axis score, compare to peers, and receive a personalized AI coaching debrief.",
     },
   ];
 

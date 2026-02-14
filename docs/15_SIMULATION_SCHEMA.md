@@ -1,6 +1,6 @@
 # Simulation Schema
 
-This document defines the JSON structure for simulation content — decision trees, scoring rubrics, stakeholder profiles, and session state. These schemas are stored in PostgreSQL JSONB columns and validated at publish time.
+This document defines the JSON structures for simulation scoring, game events, stakeholder profiles, and session data. These schemas are stored in PostgreSQL JSONB columns.
 
 ## Simulation Scoring Config
 
@@ -46,13 +46,13 @@ Stored in `simulations.scoring_config`. Defines how scores are weighted for this
 ```
 
 **Validation rules:**
-- Exactly 5 dimensions required
+- At least 1 dimension required (default 5 for Boardroom Under Pressure)
 - Weights must sum to 1.0
-- All keys must match: `financial`, `reputational`, `ethical`, `stakeholder_confidence`, `long_term_stability`
+- Keys must be unique within a simulation
 
 ## Stakeholder Profiles
 
-Stored in `modules.stakeholders`. Array of NPC characters for this module.
+Stored in `modules.stakeholders`. Array of NPC characters for this module. Used for platform display; game engine maintains its own character data.
 
 ```json
 [
@@ -66,91 +66,112 @@ Stored in `modules.stakeholders`. Array of NPC characters for this module.
     "portraitUrl": "https://cdn.simvado.com/assets/npc_cfo.jpg",
     "traits": ["cautious", "data-driven", "diplomatic"],
     "relationship_to_player": "Trusted advisor, reports to you"
-  },
-  {
-    "id": "npc_activist",
-    "name": "David Hartwell",
-    "role": "Activist Investor",
-    "title": "Managing Partner, Hartwell Capital",
-    "motivation": "Gain board influence to restructure company",
-    "personality": "Aggressive, media-savvy, impatient",
-    "portraitUrl": "https://cdn.simvado.com/assets/npc_activist.jpg",
-    "traits": ["aggressive", "strategic", "confrontational"],
-    "relationship_to_player": "Adversary, external pressure"
   }
 ]
 ```
 
-## Decision Node Options — Score Impacts
+## Game Event Schemas
 
-Stored in `node_options.score_impacts`. Defines how each choice affects scores.
+Stored in `game_events.event_data`. The structure varies by `event_type`.
+
+### Decision Event
+
+Reported when the player makes a choice at a decision point.
 
 ```json
 {
-  "financial": 15,
-  "reputational": -10,
-  "ethical": 20,
-  "stakeholder_confidence": 5,
-  "long_term_stability": 10
-}
-```
-
-**Rules:**
-- Values range from -100 to +100
-- Positive = beneficial impact, Negative = harmful impact
-- All 5 keys must be present
-- No option should be uniformly positive or negative across all dimensions (ensures trade-offs)
-
-## Context Documents
-
-Stored in `decision_nodes.context_documents`. Props the player can review before deciding.
-
-```json
-[
-  {
-    "title": "Letter from Hartwell Capital",
-    "type": "email",
-    "contentMarkdown": "Dear Board Chair,\n\nWe are writing to formally request..."
-  },
-  {
-    "title": "Q3 Financial Summary",
-    "type": "report",
-    "contentMarkdown": "## Revenue\n- Q3 Revenue: $2.1B (down 3% YoY)..."
-  },
-  {
-    "title": "Media Coverage: Investor Tensions",
-    "type": "news",
-    "contentMarkdown": "**Bloomberg** — Hartwell Capital escalates push for board seats at..."
+  "eventType": "decision",
+  "eventData": {
+    "nodeKey": "decision_1",
+    "selectedOption": "A",
+    "label": "Negotiate a single seat",
+    "description": "Offer one board seat as a compromise...",
+    "timeSpentSeconds": 47,
+    "optionsAvailable": ["A", "B", "C"],
+    "context": "The activist investor has demanded two board seats..."
   }
-]
-```
-
-**Valid types:** `email`, `report`, `news`, `memo`, `legal`, `financial`
-
-## Session State (Runtime)
-
-Stored in `sessions.final_scores` and `session_decisions.score_snapshot`.
-
-### Running Score Snapshot
-
-After each decision, the running total is stored:
-
-```json
-{
-  "financial": 65,
-  "reputational": 72,
-  "ethical": 80,
-  "stakeholder_confidence": 58,
-  "long_term_stability": 70,
-  "total": 69.55,
-  "decisionsCompleted": 2,
-  "decisionsTotal": 4
 }
 ```
 
-### Final Scores
+### Milestone Event
 
-At session completion:
+Reported when the player reaches a key narrative moment.
+
+```json
+{
+  "eventType": "milestone",
+  "eventData": {
+    "milestoneKey": "cfo_confrontation",
+    "label": "CFO Confrontation",
+    "description": "The CFO challenges your decision in front of the board",
+    "chapter": 2
+  }
+}
+```
+
+### Score Update Event
+
+Reported when scores are recalculated during gameplay.
+
+```json
+{
+  "eventType": "score_update",
+  "eventData": {
+    "scores": {
+      "financial": 65,
+      "reputational": 72,
+      "ethical": 80,
+      "stakeholder_confidence": 58,
+      "long_term_stability": 70
+    },
+    "total": 69.55,
+    "triggeredBy": "decision_1"
+  }
+}
+```
+
+### Completion Event
+
+Reported when the game engine signals the session is complete. This is typically sent via the `/api/game/sessions/:id/complete` endpoint, which also generates a completion event automatically.
+
+```json
+{
+  "eventType": "completion",
+  "eventData": {
+    "finalScores": {
+      "financial": 72,
+      "reputational": 68,
+      "ethical": 85,
+      "stakeholder_confidence": 63,
+      "long_term_stability": 74,
+      "total": 73.15
+    },
+    "totalDurationSeconds": 2847,
+    "endingKey": "negotiated_compromise",
+    "decisionsCompleted": 4
+  }
+}
+```
+
+### Custom Event
+
+For game-engine-specific data that doesn't fit other categories.
+
+```json
+{
+  "eventType": "custom",
+  "eventData": {
+    "type": "npc_interaction",
+    "npcId": "npc_cfo",
+    "dialogueExchange": "You asked about the financials...",
+    "sentiment": "concerned"
+  }
+}
+```
+
+## Final Scores
+
+Stored in `sessions.final_scores`. Submitted by the game engine at completion.
 
 ```json
 {
@@ -182,32 +203,16 @@ At session completion:
 | 50–54 | C- |
 | < 50 | D |
 
-## AI Prompt Template Schema
+## AI Debrief Prompt Template
 
-Stored in CMS. Used by Dialogue Writer and Debrief Generator agents.
-
-### Dialogue Writer Prompt
-
-```json
-{
-  "agentId": "dialogue_writer",
-  "version": "1.0.0",
-  "systemInstruction": "You are an NPC in a corporate boardroom simulation. Stay in character. Respond to the player's decision with realistic dialogue.",
-  "contextTemplate": "The player is {{player_role}}. The scenario is {{scenario_context}}. The NPC is {{npc_name}} ({{npc_role}}). Their motivation: {{npc_motivation}}. The player just chose: {{player_choice}}. Previous decisions: {{decision_history}}.",
-  "outputFormat": "Return a JSON object: { \"dialogue\": \"...\", \"tone\": \"supportive|hostile|neutral|concerned\" }",
-  "maxTokens": 300,
-  "temperature": 0.7
-}
-```
-
-### Debrief Generator Prompt
+Used by the platform's AI debrief generator. The platform constructs the prompt from game event data.
 
 ```json
 {
   "agentId": "debrief_generator",
   "version": "1.0.0",
   "systemInstruction": "You are an executive coach providing a post-simulation debrief. Be direct, specific, and constructive.",
-  "contextTemplate": "Simulation: {{simulation_title}}, Module: {{module_title}}. Player decisions: {{decision_log}}. Final scores: {{final_scores}}. Scoring dimensions: {{scoring_config}}.",
+  "contextTemplate": "Simulation: {{simulation_title}}, Module: {{module_title}}. Player decisions: {{decision_events}}. Final scores: {{final_scores}}. Scoring dimensions: {{scoring_config}}.",
   "outputFormat": "Return Markdown with sections: Summary of Decisions, Strengths, Blind Spots, Alternative Paths, Development Recommendations.",
   "maxTokens": 1500,
   "temperature": 0.6
@@ -216,16 +221,12 @@ Stored in CMS. Used by Dialogue Writer and Debrief Generator agents.
 
 ## Validation Checklist (Pre-Publish)
 
-Before a simulation can be published, it must pass these automated checks:
+Before a simulation can be published on the platform:
 
-- [ ] Scoring config has exactly 5 dimensions with weights summing to 1.0
-- [ ] Every module has at least 2 decision nodes
-- [ ] Every decision node has 3–4 options
-- [ ] Every option has score_impacts for all 5 dimensions
-- [ ] No option is uniformly positive or negative (trade-off requirement)
-- [ ] All `next_node_key` references point to valid nodes or null (terminal)
-- [ ] No orphan nodes (every node is reachable from the starting node)
-- [ ] All media URLs are valid and accessible
+- [ ] Scoring config has at least 1 dimension with weights summing to 1.0
+- [ ] At least 1 module with a title and slug
+- [ ] Module has a launch URL or platform set (indicating game engine integration is configured)
+- [ ] API key exists for the simulation's game engine integration
 - [ ] Narrative context is non-empty for every module
-- [ ] At least 1 stakeholder profile per module
-- [ ] AI prompt templates are present for modules using AI dialogue
+- [ ] At least 1 stakeholder profile per module (for platform display)
+- [ ] Game engine integration tested: session creation, event reporting, completion flow
