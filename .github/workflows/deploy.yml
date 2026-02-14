@@ -58,26 +58,18 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
     steps:
-      - name: Fetch current project config
-        id: config
+      - name: Fetch config and redeploy
         run: |
-          CONFIG=$(curl -s -X GET \
+          curl -s -X GET \
             -H "Authorization: Bearer ${{ secrets.HOSTINGER_API_TOKEN }}" \
-            "https://developers.hostinger.com/api/vps/v1/virtual-machines/${{ secrets.HOSTINGER_VM_ID }}/docker/simvado")
-          echo "content<<EOFCONTENT" >> $GITHUB_OUTPUT
-          echo "$CONFIG" | jq -r '.content' >> $GITHUB_OUTPUT
-          echo "EOFCONTENT" >> $GITHUB_OUTPUT
-          echo "environment<<EOFENV" >> $GITHUB_OUTPUT
-          echo "$CONFIG" | jq -r '.environment' >> $GITHUB_OUTPUT
-          echo "EOFENV" >> $GITHUB_OUTPUT
+            "https://developers.hostinger.com/api/vps/v1/virtual-machines/${{ secrets.HOSTINGER_VM_ID }}/docker/simvado" \
+            -o /tmp/current.json
 
-      - name: Redeploy project to pull latest image
-        run: |
-          jq -n \
-            --arg name "simvado" \
-            --arg content "${{ steps.config.outputs.content }}" \
-            --arg env "${{ steps.config.outputs.environment }}" \
-            '{project_name: $name, content: $content, environment: $env}' > /tmp/deploy.json
+          jq '{project_name: "simvado", content: .content, environment: .environment}' \
+            /tmp/current.json > /tmp/deploy.json
+
+          echo "Deploy payload prepared:"
+          jq '.content[:80]' /tmp/deploy.json
 
           RESULT=$(curl -s -X POST \
             -H "Authorization: Bearer ${{ secrets.HOSTINGER_API_TOKEN }}" \
