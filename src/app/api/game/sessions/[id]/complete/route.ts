@@ -99,6 +99,16 @@ Provide a debrief in Markdown with these sections:
     },
   });
 
+  // Auto-update matching assignment status to completed
+  await db.simulationAssignment.updateMany({
+    where: {
+      assignedToUserId: session.userId,
+      simulationId: session.module.simulationId,
+      status: { in: ["assigned", "in_progress"] },
+    },
+    data: { status: "completed" },
+  });
+
   return NextResponse.json({
     status: "completed",
     debriefGenerated: !!debriefText,

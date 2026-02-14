@@ -27,6 +27,12 @@ function AppNav() {
             >
               Simulations
             </Link>
+            <Link
+              href="/settings/billing"
+              className="text-text-secondary hover:text-text-primary transition"
+            >
+              Settings
+            </Link>
           </div>
         </div>
         <UserButton

@@ -32,6 +32,9 @@ export default function MarketingLayout({
             <Link href="/pricing" className="hover:text-text-primary transition">
               Pricing
             </Link>
+            <Link href="/docs" className="hover:text-text-primary transition">
+              Docs
+            </Link>
           </div>
           <div className="flex items-center gap-4">
             <Link

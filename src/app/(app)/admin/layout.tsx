@@ -31,6 +31,12 @@ export default async function AdminLayout({
           >
             API Keys
           </Link>
+          <Link
+            href="/admin/organizations"
+            className="text-text-secondary hover:text-text-primary transition"
+          >
+            Organizations
+          </Link>
         </nav>
       </div>
       {children}

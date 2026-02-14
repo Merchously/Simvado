@@ -2,8 +2,19 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/lib/db";
+import ScoreTrendChart from "@/components/charts/ScoreTrendChart";
+import ScoreRadarChart from "@/components/charts/ScoreRadarChart";
+import CompletionRateChart from "@/components/charts/CompletionRateChart";
 
 export const metadata: Metadata = { title: "Dashboard — Simvado" };
+
+const DIMENSION_LABELS: Record<string, string> = {
+  financial: "Financial",
+  reputational: "Reputational",
+  ethical: "Ethical",
+  stakeholder_confidence: "Stakeholder",
+  long_term_stability: "Stability",
+};
 
 export default async function DashboardPage() {
   const user = await currentUser();
@@ -21,11 +32,71 @@ export default async function DashboardPage() {
       })
     : [];
 
+  const totalCount = dbUser
+    ? await db.session.count({ where: { userId: dbUser.id } })
+    : 0;
+
   const completedCount = dbUser
     ? await db.session.count({
         where: { userId: dbUser.id, status: "completed" },
       })
     : 0;
+
+  // Fetch completed sessions for charts
+  const completedSessions = dbUser
+    ? await db.session.findMany({
+        where: { userId: dbUser.id, status: "completed" },
+        select: { startedAt: true, finalScores: true },
+        orderBy: { startedAt: "asc" },
+      })
+    : [];
+
+  // Build score trend data
+  const trendData = completedSessions.map((s) => {
+    const scores = (s.finalScores as Record<string, number>) ?? {};
+    return {
+      date: s.startedAt.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      score: scores.total ?? 0,
+    };
+  });
+
+  // Build radar data: user averages vs platform averages
+  const dimensionKeys = Object.keys(DIMENSION_LABELS);
+  const userAvgs: Record<string, number> = {};
+  for (const key of dimensionKeys) {
+    const values = completedSessions
+      .map((s) => ((s.finalScores as Record<string, number>) ?? {})[key])
+      .filter((v): v is number => typeof v === "number");
+    userAvgs[key] =
+      values.length > 0
+        ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+        : 0;
+  }
+
+  // Platform averages (all users' completed sessions)
+  const allCompleted = await db.session.findMany({
+    where: { status: "completed" },
+    select: { finalScores: true },
+  });
+  const platformAvgs: Record<string, number> = {};
+  for (const key of dimensionKeys) {
+    const values = allCompleted
+      .map((s) => ((s.finalScores as Record<string, number>) ?? {})[key])
+      .filter((v): v is number => typeof v === "number");
+    platformAvgs[key] =
+      values.length > 0
+        ? Math.round(values.reduce((a, b) => a + b, 0) / values.length)
+        : 0;
+  }
+
+  const radarData = dimensionKeys.map((key) => ({
+    dimension: DIMENSION_LABELS[key],
+    score: userAvgs[key],
+    average: platformAvgs[key],
+  }));
 
   return (
     <div className="space-y-10">
@@ -58,6 +129,17 @@ export default async function DashboardPage() {
           </p>
         </div>
       </div>
+
+      {/* Analytics charts */}
+      {completedSessions.length >= 2 && (
+        <>
+          <ScoreTrendChart data={trendData} />
+          <div className="grid md:grid-cols-2 gap-6">
+            <CompletionRateChart completed={completedCount} total={totalCount} />
+            <ScoreRadarChart data={radarData} />
+          </div>
+        </>
+      )}
 
       {/* Recent sessions */}
       <div>
