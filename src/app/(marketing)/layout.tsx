@@ -23,14 +23,17 @@ export default function MarketingLayout({
         <nav className="mx-auto max-w-7xl flex items-center justify-between px-6 py-4">
           <Logo />
           <div className="hidden md:flex items-center gap-8 text-sm text-text-secondary">
+            <Link href="/simulations" className="hover:text-text-primary transition">
+              Simulations
+            </Link>
             <Link href="#features" className="hover:text-text-primary transition">
               Features
             </Link>
-            <Link href="#how-it-works" className="hover:text-text-primary transition">
-              How It Works
-            </Link>
             <Link href="/pricing" className="hover:text-text-primary transition">
               Pricing
+            </Link>
+            <Link href="/studios" className="hover:text-text-primary transition">
+              Studios
             </Link>
             <Link href="/docs" className="hover:text-text-primary transition">
               Docs
