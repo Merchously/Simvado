@@ -86,6 +86,25 @@ enum AssignmentStatus {
   overdue
 }
 
+enum StudioStatus {
+  pending
+  approved
+  suspended
+  rejected
+}
+
+enum StudioMemberRole {
+  owner
+  admin
+  member
+}
+
+enum EarningStatus {
+  pending
+  invoiced
+  paid
+}
+
 // ─── Core Tables ────────────────────────────────────
 
 model User {
@@ -106,6 +125,8 @@ model User {
   assignedSimulations SimulationAssignment[] @relation("assignedTo")
   assignedByMe        SimulationAssignment[] @relation("assignedBy")
   authoredSimulations Simulation[]
+  ownedStudios        Studio[]             @relation("studioOwner")
+  studioMemberships   StudioMember[]
 
   @@map("users")
 }
@@ -161,15 +182,20 @@ model Simulation {
   thumbnailUrl        String?          @map("thumbnail_url")
   estimatedDurationMin Int?            @map("estimated_duration_min")
   authorId            String?          @map("author_id") @db.Uuid
+  studioId            String?          @map("studio_id") @db.Uuid
   scoringConfig       Json?            @map("scoring_config")
+  reviewNotes         String?          @map("review_notes")
+  submittedAt         DateTime?        @map("submitted_at")
   createdAt           DateTime         @default(now()) @map("created_at")
   updatedAt           DateTime         @updatedAt @map("updated_at")
   publishedAt         DateTime?        @map("published_at")
 
-  author      User?                @relation(fields: [authorId], references: [id])
-  modules     Module[]
-  assignments SimulationAssignment[]
-  apiKeys     ApiKey[]
+  author          User?                @relation(fields: [authorId], references: [id])
+  studio          Studio?              @relation(fields: [studioId], references: [id])
+  modules         Module[]
+  assignments     SimulationAssignment[]
+  apiKeys         ApiKey[]
+  studioEarnings  StudioEarning[]
 
   @@map("simulations")
 }
@@ -231,10 +257,11 @@ model Session {
   platform             GamePlatform?
   launchUrl            String?       @map("launch_url")
 
-  user         User          @relation(fields: [userId], references: [id])
-  module       Module        @relation(fields: [moduleId], references: [id])
-  organization Organization? @relation(fields: [organizationId], references: [id])
-  gameEvents   GameEvent[]
+  user           User            @relation(fields: [userId], references: [id])
+  module         Module          @relation(fields: [moduleId], references: [id])
+  organization   Organization?   @relation(fields: [organizationId], references: [id])
+  gameEvents     GameEvent[]
+  studioEarnings StudioEarning[]
 
   @@index([userId])
   @@index([moduleId])
@@ -275,6 +302,8 @@ model ApiKey {
 
   simulation   Simulation?   @relation(fields: [simulationId], references: [id])
   organization Organization? @relation(fields: [organizationId], references: [id])
+  studioId     String?       @map("studio_id") @db.Uuid
+  studio       Studio?       @relation(fields: [studioId], references: [id])
 
   @@map("api_keys")
 }
@@ -299,4 +328,64 @@ model SimulationAssignment {
   @@index([organizationId])
   @@index([assignedToUserId])
   @@map("simulation_assignments")
+}
+
+// ─── Studio Marketplace ────────────────────────────
+
+model Studio {
+  id                  String       @id @default(uuid()) @db.Uuid
+  name                String
+  slug                String       @unique
+  description         String       @default("")
+  websiteUrl          String?      @map("website_url")
+  logoUrl             String?      @map("logo_url")
+  status              StudioStatus @default(pending)
+  ownerId             String       @map("owner_id") @db.Uuid
+  revenueSplitPercent Int          @default(70) @map("revenue_split_percent")
+  rejectionReason     String?      @map("rejection_reason")
+  createdAt           DateTime     @default(now()) @map("created_at")
+  updatedAt           DateTime     @updatedAt @map("updated_at")
+
+  owner       User            @relation("studioOwner", fields: [ownerId], references: [id])
+  members     StudioMember[]
+  simulations Simulation[]
+  apiKeys     ApiKey[]
+  earnings    StudioEarning[]
+
+  @@map("studios")
+}
+
+model StudioMember {
+  id       String           @id @default(uuid()) @db.Uuid
+  studioId String           @map("studio_id") @db.Uuid
+  userId   String           @map("user_id") @db.Uuid
+  role     StudioMemberRole @default(member)
+  joinedAt DateTime         @default(now()) @map("joined_at")
+
+  studio Studio @relation(fields: [studioId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([studioId, userId])
+  @@map("studio_members")
+}
+
+model StudioEarning {
+  id             String        @id @default(uuid()) @db.Uuid
+  studioId       String        @map("studio_id") @db.Uuid
+  sessionId      String        @unique @map("session_id") @db.Uuid
+  simulationId   String        @map("simulation_id") @db.Uuid
+  grossAmount    Decimal       @map("gross_amount") @db.Decimal(10, 2)
+  studioAmount   Decimal       @map("studio_amount") @db.Decimal(10, 2)
+  platformAmount Decimal       @map("platform_amount") @db.Decimal(10, 2)
+  currency       String        @default("usd")
+  status         EarningStatus @default(pending)
+  createdAt      DateTime      @default(now()) @map("created_at")
+
+  studio     Studio     @relation(fields: [studioId], references: [id])
+  session    Session    @relation(fields: [sessionId], references: [id])
+  simulation Simulation @relation(fields: [simulationId], references: [id])
+
+  @@index([studioId])
+  @@index([status])
+  @@map("studio_earnings")
 }

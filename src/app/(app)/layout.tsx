@@ -2,8 +2,26 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
+import { currentUser } from "@clerk/nextjs/server";
+import { db } from "@/lib/db";
 
-function AppNav() {
+async function AppNav() {
+  const user = await currentUser();
+  const dbUser = user
+    ? await db.user.findUnique({
+        where: { clerkId: user.id },
+        include: {
+          studioMemberships: {
+            include: { studio: { select: { slug: true } } },
+            take: 1,
+          },
+        },
+      })
+    : null;
+
+  const isAdmin = dbUser?.role === "platform_admin";
+  const studioSlug = dbUser?.studioMemberships?.[0]?.studio?.slug;
+
   return (
     <header className="fixed top-0 w-full z-50 border-b border-border-subtle bg-surface/90 backdrop-blur-xl">
       <nav className="mx-auto max-w-7xl flex items-center justify-between px-6 py-3">
@@ -27,6 +45,28 @@ function AppNav() {
             >
               Simulations
             </Link>
+            <Link
+              href="/studios"
+              className="text-text-secondary hover:text-text-primary transition"
+            >
+              Studios
+            </Link>
+            {studioSlug && (
+              <Link
+                href={`/studio/${studioSlug}`}
+                className="text-text-secondary hover:text-text-primary transition"
+              >
+                My Studio
+              </Link>
+            )}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="text-text-secondary hover:text-text-primary transition"
+              >
+                Admin
+              </Link>
+            )}
             <Link
               href="/settings/billing"
               className="text-text-secondary hover:text-text-primary transition"

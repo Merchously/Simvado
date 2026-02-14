@@ -6,6 +6,54 @@ import { db } from "@/lib/db";
 
 type Props = { params: Promise<{ slug: string }> };
 
+async function MoreFromStudio({
+  studioSlug,
+  studioName,
+  currentSimId,
+}: {
+  studioSlug: string;
+  studioName: string;
+  currentSimId: string;
+}) {
+  const otherSims = await db.simulation.findMany({
+    where: {
+      studio: { slug: studioSlug },
+      status: "published",
+      id: { not: currentSimId },
+    },
+    select: { id: true, slug: true, title: true, category: true },
+    take: 3,
+  });
+
+  if (otherSims.length === 0) return null;
+
+  return (
+    <div className="rounded-xl border border-border-subtle bg-surface-raised p-6">
+      <h2 className="text-lg font-semibold mb-4">
+        More from{" "}
+        <Link
+          href={`/studios/${studioSlug}`}
+          className="text-brand-400 hover:text-brand-300 transition"
+        >
+          {studioName}
+        </Link>
+      </h2>
+      <div className="grid sm:grid-cols-3 gap-4">
+        {otherSims.map((s) => (
+          <Link
+            key={s.id}
+            href={`/simulations/${s.slug}`}
+            className="p-4 rounded-lg bg-surface-overlay hover:bg-surface-overlay/70 transition"
+          >
+            <p className="font-medium text-sm">{s.title}</p>
+            <p className="text-xs text-text-muted mt-1">{s.category}</p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const sim = await db.simulation.findUnique({ where: { slug } });
@@ -23,6 +71,7 @@ export default async function SimulationDetailPage({ params }: Props) {
           where: { status: "published" },
           orderBy: { sortOrder: "asc" },
         },
+        studio: { select: { name: true, slug: true } },
       },
     }),
     currentUser(),
@@ -47,6 +96,17 @@ export default async function SimulationDetailPage({ params }: Props) {
           &larr; All Simulations
         </Link>
         <h1 className="mt-4 text-4xl font-bold">{simulation.title}</h1>
+        {simulation.studio && (
+          <p className="mt-1 text-sm text-text-muted">
+            By{" "}
+            <Link
+              href={`/studios/${simulation.studio.slug}`}
+              className="text-brand-400 hover:text-brand-300 transition"
+            >
+              {simulation.studio.name}
+            </Link>
+          </p>
+        )}
         <p className="mt-2 text-text-secondary">{simulation.description}</p>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
@@ -156,6 +216,15 @@ export default async function SimulationDetailPage({ params }: Props) {
           })}
         </div>
       </div>
+
+      {/* More from this studio */}
+      {simulation.studio && (
+        <MoreFromStudio
+          studioSlug={simulation.studio.slug}
+          studioName={simulation.studio.name}
+          currentSimId={simulation.id}
+        />
+      )}
 
       {/* Upgrade banner for free users */}
       {!hasFullAccess && (

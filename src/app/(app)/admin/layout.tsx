@@ -37,6 +37,24 @@ export default async function AdminLayout({
           >
             Organizations
           </Link>
+          <Link
+            href="/admin/studios"
+            className="text-text-secondary hover:text-text-primary transition"
+          >
+            Studios
+          </Link>
+          <Link
+            href="/admin/reviews"
+            className="text-text-secondary hover:text-text-primary transition"
+          >
+            Reviews
+          </Link>
+          <Link
+            href="/admin/earnings"
+            className="text-text-secondary hover:text-text-primary transition"
+          >
+            Earnings
+          </Link>
         </nav>
       </div>
       {children}

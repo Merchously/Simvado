@@ -109,6 +109,39 @@ Provide a debrief in Markdown with these sections:
     data: { status: "completed" },
   });
 
+  // Create studio earning if this is a third-party simulation
+  const sim = session.module.simulation;
+  if (sim.studioId) {
+    const [studio, sessionUser] = await Promise.all([
+      db.studio.findUnique({ where: { id: sim.studioId } }),
+      db.user.findUnique({ where: { id: session.userId } }),
+    ]);
+    if (
+      studio?.status === "approved" &&
+      sessionUser?.subscriptionTier !== "free"
+    ) {
+      const grossRate = 2.0;
+      const studioShare = (grossRate * studio.revenueSplitPercent) / 100;
+      const platformShare = grossRate - studioShare;
+      await db.studioEarning
+        .create({
+          data: {
+            studioId: studio.id,
+            sessionId: id,
+            simulationId: sim.id,
+            grossAmount: grossRate,
+            studioAmount: studioShare,
+            platformAmount: platformShare,
+            currency: "usd",
+            status: "pending",
+          },
+        })
+        .catch(() => {
+          // Unique constraint on sessionId — earning already exists
+        });
+    }
+  }
+
   return NextResponse.json({
     status: "completed",
     debriefGenerated: !!debriefText,

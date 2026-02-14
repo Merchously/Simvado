@@ -4,29 +4,40 @@ import { db } from "@/lib/db";
 export const metadata: Metadata = { title: "Admin — Simvado" };
 
 export default async function AdminDashboardPage() {
-  const [userCount, simCount, sessionCount, apiKeyCount, recentSessions] =
-    await Promise.all([
-      db.user.count(),
-      db.simulation.count(),
-      db.session.count(),
-      db.apiKey.count({ where: { isActive: true } }),
-      db.session.findMany({
-        include: {
-          user: { select: { name: true, email: true } },
-          module: {
-            select: { title: true, simulation: { select: { title: true } } },
-          },
+  const [
+    userCount,
+    simCount,
+    sessionCount,
+    apiKeyCount,
+    studioCount,
+    pendingReviews,
+    recentSessions,
+  ] = await Promise.all([
+    db.user.count(),
+    db.simulation.count(),
+    db.session.count(),
+    db.apiKey.count({ where: { isActive: true } }),
+    db.studio.count({ where: { status: "approved" } }),
+    db.simulation.count({ where: { status: "review" } }),
+    db.session.findMany({
+      include: {
+        user: { select: { name: true, email: true } },
+        module: {
+          select: { title: true, simulation: { select: { title: true } } },
         },
-        orderBy: { startedAt: "desc" },
-        take: 10,
-      }),
-    ]);
+      },
+      orderBy: { startedAt: "desc" },
+      take: 10,
+    }),
+  ]);
 
   const stats = [
     { label: "Users", value: userCount },
     { label: "Simulations", value: simCount },
     { label: "Sessions", value: sessionCount },
     { label: "Active API Keys", value: apiKeyCount },
+    { label: "Studios", value: studioCount },
+    { label: "Pending Reviews", value: pendingReviews },
   ];
 
   return (
@@ -36,7 +47,7 @@ export default async function AdminDashboardPage() {
         <p className="mt-1 text-text-secondary">Admin dashboard</p>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {stats.map((s) => (
           <div
             key={s.label}

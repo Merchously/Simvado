@@ -21,6 +21,7 @@ export default async function SimulationsPage() {
         where: { status: "published" },
         orderBy: { sortOrder: "asc" },
       },
+      studio: { select: { name: true, slug: true } },
     },
     orderBy: { publishedAt: "desc" },
   });
@@ -71,6 +72,11 @@ export default async function SimulationsPage() {
                   <h3 className="text-lg font-semibold group-hover:text-brand-300 transition">
                     {sim.title}
                   </h3>
+                  {sim.studio && (
+                    <p className="text-xs text-text-muted mt-0.5">
+                      By {sim.studio.name}
+                    </p>
+                  )}
                   <p className="mt-1 text-sm text-text-muted line-clamp-2">
                     {sim.description}
                   </p>
